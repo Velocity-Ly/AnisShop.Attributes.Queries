@@ -16,9 +16,12 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
                 Assert.Equal(attribute.EnglishDisplayName, matchingAttribute.EnglishDisplayName);
                 Assert.Equal(attribute.ArabicDescription, matchingAttribute.ArabicDescription);
                 Assert.Equal(attribute.EnglishDescription, matchingAttribute.EnglishDescription);
+                Assert.Equal((int)attribute.Type, (int)matchingAttribute.Type);
+                Assert.Equal((int)attribute.Status, (int)matchingAttribute.Status);
                 Assert.Equal(attribute.Version, matchingAttribute.Version);
-                Assert.Equal(attribute.Options.Count, matchingAttribute.Options.Count);
-                Assert.Equal(attribute.ApplicableCategories.Count, matchingAttribute.ApplicableCategoryIds.Count);
+
+                OfOptions(attribute.Options, matchingAttribute.Options);
+                OfCategories(attribute.ApplicableCategories, matchingAttribute.ApplicableCategoryIds);
             }
         }
 
@@ -26,6 +29,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
         {
             Assert.Equal(expectedCurrentPage, response.CurrentPage);
             Assert.Equal(expectedPageSize, response.PageSize);
+            Assert.Equal(expectedTotal, response.Attributes.Count);
         }
     }
 }
