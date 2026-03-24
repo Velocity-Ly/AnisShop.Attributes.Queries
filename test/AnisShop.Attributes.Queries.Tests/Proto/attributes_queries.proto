@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+import "google/protobuf/wrappers.proto";
+
+option csharp_namespace = "AnisShop.Attributes.Queries.Tests.QueriesProto";
+
+package anishop.attributes.queries.v1;
+
+service AttributesQueries {
+  rpc Get (GetRequest) returns (GetResponse);
+  rpc GetByCategory (GetByCategoryRequest) returns (GetByCategoryResponse);
+}
+
+message GetRequest {
+  string id = 1;
+}
+
+message GetByCategoryRequest {
+  int32 category_id = 1;
+  int32 current_page = 2;
+  int32 page_size = 3;
+}
+
+message GetResponse {
+  AttributeOutput attribute = 1;
+}
+
+message GetByCategoryResponse {
+  repeated AttributeOutput attributes = 1;
+  int32 current_page = 2;
+  int32 page_size = 3;
+}
+
+message AttributeOutput {
+  string id = 1;
+  string arabic_display_name = 2;
+  string english_display_name = 3;
+  google.protobuf.StringValue arabic_description = 4;
+  google.protobuf.StringValue english_description = 5;
+  AttributeType type = 6;
+  AttributeStatus status = 7;
+  repeated AttributeOptionOutput options = 8;
+  repeated int32 applicable_category_ids = 9;
+  int32 version = 10;
+}
+
+message AttributeOptionOutput {
+  string key = 1;
+  string arabic_label = 2;
+  string english_label = 3;
+  bool is_disabled = 4;
+}
+
+enum AttributeType {
+  ATTRIBUTE_TYPE_UNSPECIFIED = 0;
+  ATTRIBUTE_TYPE_SINGLE_SELECT = 1;
+  ATTRIBUTE_TYPE_MULTI_SELECT = 2;
+}
+
+enum AttributeStatus {
+  ATTRIBUTE_STATUS_UNSPECIFIED = 0;
+  ATTRIBUTE_STATUS_DRAFT = 1;
+  ATTRIBUTE_STATUS_PUBLISHED = 2;
+  ATTRIBUTE_STATUS_DEPRECATED = 3;
+  ATTRIBUTE_STATUS_DISABLED = 4;
+}

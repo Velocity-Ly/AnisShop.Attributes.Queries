@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Read(//c/Users/emada/source/repos/EshopCode/Main/AnisShop.Categories/**)",
+      "Bash(dir:*)",
+      "Bash(del \"c:\\\\Users\\\\emada\\\\source\\\\repos\\\\EshopCode\\\\Main\\\\AnisShop.Attributes.Queries\\\\src\\\\AnisShop.Attributes.Queries\\\\Protos\\\\greet.proto\")",
+      "Bash(del \"c:\\\\Users\\\\emada\\\\source\\\\repos\\\\EshopCode\\\\Main\\\\AnisShop.Attributes.Queries\\\\src\\\\AnisShop.Attributes.Queries\\\\Services\\\\GreeterService.cs\")",
+      "Bash(Remove-Item:*)",
+      "Bash(Remove-Item -Path \"c:\\\\Users\\\\emada\\\\source\\\\repos\\\\EshopCode\\\\Main\\\\AnisShop.Attributes.Queries\\\\src\\\\AnisShop.Attributes.Queries\\\\Services\" -Recurse -Force -ErrorAction SilentlyContinue)",
+      "Bash(Write-Host \"Template files cleaned up\")",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet test:*)"
+    ]
+  }
+}

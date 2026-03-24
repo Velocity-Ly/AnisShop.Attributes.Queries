@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/docs/" />
+  <Folder Name="/src/">
+    <Project Path="src/AnisShop.Attributes.Queries/AnisShop.Attributes.Queries.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj" />
+    <Project Path="test/AnisShop.Attributes.Queries.IntegrationTests/AnisShop.Attributes.Queries.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
