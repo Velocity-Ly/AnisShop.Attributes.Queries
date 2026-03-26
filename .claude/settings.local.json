@@ -11,7 +11,10 @@
       "Bash(Write-Host \"Template files cleaned up\")",
       "Bash(dotnet build:*)",
       "Bash(dotnet restore:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(find c:UsersemadasourcereposeshopEshopCodeMainAttributesAnisShop.Attributes.Commands -name appsettings*.json -type f)",
+      "Read(//c/Users/emada/.nuget/packages/mediator.abstractions/3.0.2/**)",
+      "Read(//c/Users/emada/.nuget/packages/mediator.abstractions/**)"
     ]
   }
 }
