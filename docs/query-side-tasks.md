@@ -39,26 +39,45 @@ Update:
 ---
 
 ## Task 3 — Event Consumer Infrastructure
-**Status**: NOT STARTED
+**Status**: DONE
 
 The core consumer that listens to Azure Service Bus and routes events to projectors.
 
-**Components**:
-- `ServiceBusSessionProcessor` wrapped in `IHostedService`
-  - Must use sessions (publisher sets SessionId = AggregateId for FIFO ordering)
-- JSON deserialization (camelCase, System.Text.Json)
-- Event type routing based on message `Type` application property
-- Idempotency: only process if `event.Version == currentAttribute.Version + 1`
-  - For `AttributeCreated`: no prior row expected, Version must be 1
-- Error handling / dead-lettering for unprocessable messages
-- DI registration in Program.cs
-- Configuration model (connection string, topic name, subscription name)
-- Polly retry for transient DB failures (package already referenced)
+**Implemented components** (`Infrastructure/ServiceBus/`):
 
-**Key design decisions**:
-- Projector interface: each event type maps to a projector method
-- Transaction wrapping: read model update + message completion in one logical unit
-- Logging: structured logging via Serilog for each event processed
+| File | Purpose |
+|---|---|
+| `ServiceBusListenerOptions.cs` | Config POCO — topic, subscription, max concurrent sessions (1000), max messages per session (100), DLQ toggle |
+| `IEventDeserializer.cs` / `EventDeserializer.cs` | Maps `EventTypeNames` → concrete types via `FrozenDictionary`, deserializes JSON body from Service Bus messages |
+| `EventBatchProcessor.cs` | Pure logic: sort by version, deduplicate, detect version gaps, return contiguous prefix. Independently testable (no Service Bus coupling) |
+| `ServiceBusEventListener.cs` | `IHostedService` — manual session loop + dead letter queue processor |
+
+**Architecture decisions made**:
+- **Manual session management** instead of `ServiceBusSessionProcessor` — the built-in processor delivers one message at a time, we need batches of 100 per session
+- Uses `AcceptNextSessionAsync` + `ReceiveMessagesAsync(maxMessages: 100)` for true batch behavior
+- `SemaphoreSlim(1000)` caps concurrent sessions as a safety ceiling (not a lock — prevents resource exhaustion during bursts)
+- **Two concurrent loops**: main session loop (fire-and-forget per session) + DLQ processor (`ServiceBusProcessor` with `SubQueue.DeadLetter`)
+- **Gap detection**: versions `[4,5,6,8,9,10]` → sends `[4,5,6]` to handler, stops at gap. Only checks `Version == prev + 1`, does NOT validate starting version (handler's idempotency check handles that)
+- **Duplicate handling**: same-version messages are completed (removed) at the Service Bus level before reaching the handler
+- **DLQ events**: sent individually (single event in a list) to the same `IncomingEvents` handler
+- `EventBatchProcessor` is a standalone class (not a Mediator pipeline behavior) — simpler, more explicit, easier to test
+- Handler returns `bool`: `true` → complete contiguous messages, `false` → don't complete (lock expires, messages retry)
+
+**DI registrations** added to `Program.cs`:
+- `ServiceBusClient` (singleton, from connection string)
+- `ServiceBusListenerOptions` (bound from `ServiceBus` config section)
+- `IEventDeserializer` / `EventDeserializer` (singleton)
+- `EventBatchProcessor` (singleton)
+- `ServiceBusEventListener` (hosted service)
+
+**Config** added to `appsettings.json`:
+- `ConnectionStrings:ServiceBus` — Azure Service Bus connection string
+- `ServiceBus:TopicName`, `ServiceBus:SubscriptionName`
+
+**Still NOT implemented** (out of scope for this task):
+- `IncomingEventsHandler` body (currently returns `true`) — see Tasks 4 & 5
+- Polly retry wrapping — to be added when projectors are implemented
+- Idempotency enforcement (`event.Version == currentAttribute.Version + 1`) — lives in the handler, not the listener
 
 ---
 

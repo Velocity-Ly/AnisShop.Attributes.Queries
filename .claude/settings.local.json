@@ -14,7 +14,11 @@
       "Bash(dotnet test:*)",
       "Bash(find c:UsersemadasourcereposeshopEshopCodeMainAttributesAnisShop.Attributes.Commands -name appsettings*.json -type f)",
       "Read(//c/Users/emada/.nuget/packages/mediator.abstractions/3.0.2/**)",
-      "Read(//c/Users/emada/.nuget/packages/mediator.abstractions/**)"
+      "Read(//c/Users/emada/.nuget/packages/mediator.abstractions/**)",
+      "Bash(find C:UsersemadasourcereposeshopEshopCodeMainAttributes -type d -name *Test*)",
+      "Read(//c/Users/emada/source/repos/eshop/EshopCode/Main/Attributes/**)",
+      "Bash(find /c/Users/emada/source/repos/eshop/EshopCode/Main/Attributes -name *.cs -type f)",
+      "Bash(find /c/Users/emada/source/repos/eshop/EshopCode/Main/Attributes -name *.cs -type f -path */test/* ! -path */obj/* ! -path */.vs/*)"
     ]
   }
 }

@@ -3,7 +3,6 @@ using AnisShop.Attributes.Queries.Infrastructure.Persistence;
 using AnisShop.Attributes.Queries.Infrastructure.ServiceBus;
 using AnisShop.Attributes.Queries.Interceptors;
 using AnisShop.Attributes.Queries.Setup;
-using Azure.Messaging.ServiceBus;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -28,15 +27,7 @@ builder.Services.AddDbContext<AttributesDbContext>(options =>
 
 builder.Services.AddHostedService<DatabaseRunner>();
 
-builder.Services.AddSingleton(_ =>
-    new ServiceBusClient(builder.Configuration.GetConnectionString("ServiceBus")));
-
-builder.Services.Configure<ServiceBusListenerOptions>(
-    builder.Configuration.GetSection(ServiceBusListenerOptions.SectionName));
-
-builder.Services.AddSingleton<IEventDeserializer, EventDeserializer>();
-builder.Services.AddSingleton<EventBatchProcessor>();
-builder.Services.AddHostedService<ServiceBusEventListener>();
+builder.Services.AddServiceBusListener(builder.Configuration);
 
 builder.Host.UseSerilog();
 

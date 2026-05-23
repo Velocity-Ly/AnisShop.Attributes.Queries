@@ -37,6 +37,12 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
             return this;
         }
 
+        public AttributeFaker WithVersion(int version)
+        {
+            RuleFor(x => x.Version, version);
+            return this;
+        }
+
         public AttributeFaker WithCategoryIds(params int[] categoryIds)
         {
             _categoryIds = categoryIds;
