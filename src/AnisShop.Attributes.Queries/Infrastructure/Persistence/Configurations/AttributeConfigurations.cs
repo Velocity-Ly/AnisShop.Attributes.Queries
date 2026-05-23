@@ -14,6 +14,10 @@ namespace AnisShop.Attributes.Queries.Infrastructure.Persistence.Configurations
             builder.Property(x => x.EnglishDisplayName).HasMaxLength(128).IsRequired();
             builder.Property(x => x.ArabicDescription).HasMaxLength(1000);
             builder.Property(x => x.EnglishDescription).HasMaxLength(1000);
+            builder.Property(x => x.ArabicDeprecationWarning).HasMaxLength(1000);
+            builder.Property(x => x.EnglishDeprecationWarning).HasMaxLength(1000);
+            builder.Property(x => x.ArabicDisableReason).HasMaxLength(1000);
+            builder.Property(x => x.EnglishDisableReason).HasMaxLength(1000);
 
             builder.HasIndex(x => x.ArabicDisplayName);
             builder.HasIndex(x => x.EnglishDisplayName);

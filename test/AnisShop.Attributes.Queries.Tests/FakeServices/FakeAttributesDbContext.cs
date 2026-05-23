@@ -8,35 +8,22 @@ public class FakeAttributesDbContext(DbContextOptions<AttributesDbContext> optio
     : AttributesDbContext(options)
 {
     public override Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
-        Task.FromResult<IDbContextTransaction>(new FakeTransaction(this));
+        Task.FromResult<IDbContextTransaction>(new FakeTransaction());
 
-    private class FakeTransaction(DbContext context) : IDbContextTransaction
+    // The InMemory provider has no real transaction, and the handler persists with
+    // SaveChanges(acceptAllChangesOnSuccess: false) BEFORE calling Commit — so the rows are
+    // already in the store while the entities stay dirty. Commit must therefore be a no-op:
+    // re-calling SaveChanges here would re-insert the still-Added entities (duplicate key).
+    private class FakeTransaction : IDbContextTransaction
     {
-        private bool _committed;
-
         public Guid TransactionId => Guid.NewGuid();
 
-        public async Task CommitAsync(CancellationToken cancellationToken = default)
-        {
-            if (!_committed)
-            {
-                await context.SaveChangesAsync(cancellationToken);
-                _committed = true;
-            }
-        }
+        public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task RollbackAsync(CancellationToken cancellationToken = default)
-        {
-            return Task.CompletedTask;
-        }
+        public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public void Commit()
         {
-            if (!_committed)
-            {
-                context.SaveChanges();
-                _committed = true;
-            }
         }
 
         public void Rollback()

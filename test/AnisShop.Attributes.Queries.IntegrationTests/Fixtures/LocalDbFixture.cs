@@ -22,6 +22,12 @@ public class LocalDbFixture : IAsyncLifetime
             .Options;
 
         await using var context = new AttributesDbContext(options);
+
+        // Drop-then-create so the schema always matches the current model. EnsureCreatedAsync
+        // alone is a no-op when the database already exists, so a database left on disk from an
+        // earlier session with an older model (e.g. before the deprecation/disable columns were
+        // added) would be missing columns and every insert would fail with "invalid column name".
+        await context.Database.EnsureDeletedAsync();
         await context.Database.EnsureCreatedAsync();
 
         await using var connection = new SqlConnection(ConnectionString);

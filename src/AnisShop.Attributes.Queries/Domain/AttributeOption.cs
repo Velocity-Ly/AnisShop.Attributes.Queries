@@ -25,5 +25,23 @@ namespace AnisShop.Attributes.Queries.Domain
         public string EnglishLabel { get; private set; }
         public bool IsDisabled { get; private set; }
         public int SortOrder { get; private set; }
+
+        internal static AttributeOption Create(
+            Guid attributeId,
+            string key,
+            string arabicLabel,
+            string englishLabel,
+            int sortOrder)
+            => new(attributeId, key, arabicLabel, englishLabel, isDisabled: false, sortOrder);
+
+        internal void ChangeLabel(string arabicLabel, string englishLabel)
+        {
+            ArabicLabel = arabicLabel;
+            EnglishLabel = englishLabel;
+        }
+
+        internal void Disable() => IsDisabled = true;
+
+        internal void SetSortOrder(int sortOrder) => SortOrder = sortOrder;
     }
 }

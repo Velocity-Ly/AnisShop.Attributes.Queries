@@ -26,6 +26,10 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
                 EnglishDescription = attribute.EnglishDescription,
                 Type = attribute.Type,
                 Status = attribute.Status,
+                ArabicDeprecationWarning = attribute.ArabicDeprecationWarning,
+                EnglishDeprecationWarning = attribute.EnglishDeprecationWarning,
+                ArabicDisableReason = attribute.ArabicDisableReason,
+                EnglishDisableReason = attribute.EnglishDisableReason,
                 Version = attribute.Version,
                 Options = attribute.Options.Select(o => new AttributeOptionItem
                 {

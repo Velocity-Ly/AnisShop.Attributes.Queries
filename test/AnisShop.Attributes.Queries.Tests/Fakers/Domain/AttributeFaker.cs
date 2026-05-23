@@ -16,6 +16,10 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
             RuleFor(x => x.EnglishDescription, f => f.Lorem.Sentence());
             RuleFor(x => x.Type, f => f.PickRandom<SourceDomain.AttributeType>());
             RuleFor(x => x.Status, f => f.PickRandom<SourceDomain.AttributeStatus>());
+            RuleFor(x => x.ArabicDeprecationWarning, f => f.Lorem.Sentence());
+            RuleFor(x => x.EnglishDeprecationWarning, f => f.Lorem.Sentence());
+            RuleFor(x => x.ArabicDisableReason, f => f.Lorem.Sentence());
+            RuleFor(x => x.EnglishDisableReason, f => f.Lorem.Sentence());
             RuleFor(x => x.Version, f => f.Random.Int(1, 100));
         }
 

@@ -19,6 +19,10 @@ namespace AnisShop.Attributes.Queries.Features.Queries.GetByCategory
         public required string? EnglishDescription { get; init; }
         public required AttributeType Type { get; init; }
         public required AttributeStatus Status { get; init; }
+        public required string? ArabicDeprecationWarning { get; init; }
+        public required string? EnglishDeprecationWarning { get; init; }
+        public required string? ArabicDisableReason { get; init; }
+        public required string? EnglishDisableReason { get; init; }
         public required int Version { get; init; }
         public required IEnumerable<AttributeOptionItem> Options { get; init; }
         public required IEnumerable<int> ApplicableCategoryIds { get; init; }

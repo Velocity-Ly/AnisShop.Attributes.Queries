@@ -42,6 +42,10 @@ message AttributeOutput {
   repeated AttributeOptionOutput options = 8;
   repeated int32 applicable_category_ids = 9;
   int32 version = 10;
+  google.protobuf.StringValue arabic_deprecation_warning = 11;
+  google.protobuf.StringValue english_deprecation_warning = 12;
+  google.protobuf.StringValue arabic_disable_reason = 13;
+  google.protobuf.StringValue english_disable_reason = 14;
 }
 
 message AttributeOptionOutput {

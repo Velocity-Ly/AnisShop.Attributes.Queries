@@ -15,6 +15,10 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
             Assert.Equal(attribute.EnglishDescription, response.Attribute.EnglishDescription);
             Assert.Equal((int)attribute.Type, (int)response.Attribute.Type);
             Assert.Equal((int)attribute.Status, (int)response.Attribute.Status);
+            Assert.Equal(attribute.ArabicDeprecationWarning, response.Attribute.ArabicDeprecationWarning);
+            Assert.Equal(attribute.EnglishDeprecationWarning, response.Attribute.EnglishDeprecationWarning);
+            Assert.Equal(attribute.ArabicDisableReason, response.Attribute.ArabicDisableReason);
+            Assert.Equal(attribute.EnglishDisableReason, response.Attribute.EnglishDisableReason);
             Assert.Equal(attribute.Version, response.Attribute.Version);
 
             OfOptions(attribute.Options, response.Attribute.Options);

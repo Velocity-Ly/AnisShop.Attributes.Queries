@@ -20,6 +20,7 @@ public abstract class SqlIntegrationTestBase : IAsyncLifetime
     protected readonly WebApplicationFactory<Program> Factory;
     protected readonly GrpcClientHelper GrpcClientHelper;
     protected readonly DatabaseHelper DatabaseHelper;
+    protected readonly MediatorHelper MediatorHelper;
 
     protected SqlIntegrationTestBase(LocalDbFixture fixture, ITestOutputHelper output, Action<IServiceCollection>? additionalConfiguration = null)
     {
@@ -45,6 +46,7 @@ public abstract class SqlIntegrationTestBase : IAsyncLifetime
 
         GrpcClientHelper = new GrpcClientHelper(Factory);
         DatabaseHelper = new DatabaseHelper(Factory);
+        MediatorHelper = new MediatorHelper(Factory);
     }
 
     public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
@@ -54,6 +56,7 @@ public abstract class SqlIntegrationTestBase : IAsyncLifetime
     private static void ConfigureSqlServerEnvironment(IServiceCollection services, string connectionString)
     {
         RemoveDatabaseRunner(services);
+        services.RemoveServiceBusServices();
         UseSqlServer(services, connectionString);
     }
 

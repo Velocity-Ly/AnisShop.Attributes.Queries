@@ -18,7 +18,10 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
             UseInMemoryDb(services);
         }
 
-        private static void RemoveServiceBusServices(IServiceCollection services)
+        // Strips the live Service Bus listener + client so the test host can boot without a
+        // real Azure connection string. Shared by both the unit (InMemory) and integration
+        // (LocalDB) environments — both project events directly via Mediator, never over the wire.
+        public static void RemoveServiceBusServices(this IServiceCollection services)
         {
             var serviceBusClient = services.SingleOrDefault(d => d.ServiceType == typeof(ServiceBusClient));
             if (serviceBusClient != null)
