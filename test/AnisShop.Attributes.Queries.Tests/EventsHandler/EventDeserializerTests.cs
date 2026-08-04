@@ -28,7 +28,8 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
                   "arabicDisplayName": "Arabic Name",
                   "englishDisplayName": "English Name"
                 },
-                "type": "SingleSelect"
+                "type": "SingleSelect",
+                "scope": "ProductCategory"
               }
             }
             """;
@@ -46,6 +47,7 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
             Assert.Equal(1, created.Version);
             Assert.Equal("user-1", created.UserId);
             Assert.Equal("SingleSelect", created.Data.Type);
+            Assert.Equal("ProductCategory", created.Data.Scope);
             Assert.Equal("Arabic Name", created.Data.Metadata.ArabicDisplayName);
             Assert.Equal("English Name", created.Data.Metadata.EnglishDisplayName);
         }

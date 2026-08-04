@@ -17,7 +17,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
 
             var attribute = await db.Attributes
                 .Include(a => a.Options.OrderBy(o => o.SortOrder))
-                .Include(a => a.ApplicableCategories)
+                .Include(a => a.ApplicableTargets)
                 .SingleOrDefaultAsync(a => a.Id == id);
 
             Assert.NotNull(attribute);
@@ -77,18 +77,18 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
             Assert.Equal(expectedCount, attribute.Options.Count);
         }
 
-        public static async Task HasCategories(
+        public static async Task HasTargets(
             WebApplicationFactory<Program> factory,
             Guid id,
-            params int[] expectedCategoryIds)
+            params int[] expectedTargetIds)
         {
             var attribute = await Exists(factory, id);
-            Assert.Equal(expectedCategoryIds.Length, attribute.ApplicableCategories.Count);
+            Assert.Equal(expectedTargetIds.Length, attribute.ApplicableTargets.Count);
 
-            foreach (var categoryId in expectedCategoryIds)
+            foreach (var targetId in expectedTargetIds)
             {
-                Assert.Contains(attribute.ApplicableCategories,
-                    c => c.CategoryId == categoryId);
+                Assert.Contains(attribute.ApplicableTargets,
+                    t => t.TargetId == targetId);
             }
         }
 

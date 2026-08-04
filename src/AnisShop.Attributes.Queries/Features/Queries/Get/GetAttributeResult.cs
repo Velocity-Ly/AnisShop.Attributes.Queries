@@ -10,6 +10,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
         public required string? ArabicDescription { get; init; }
         public required string? EnglishDescription { get; init; }
         public required AttributeType Type { get; init; }
+        public required AttributeScope Scope { get; init; }
         public required AttributeStatus Status { get; init; }
         public required string? ArabicDeprecationWarning { get; init; }
         public required string? EnglishDeprecationWarning { get; init; }
@@ -17,7 +18,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
         public required string? EnglishDisableReason { get; init; }
         public required int Version { get; init; }
         public required IEnumerable<AttributeOptionItem> Options { get; init; }
-        public required IEnumerable<int> ApplicableCategoryIds { get; init; }
+        public required IEnumerable<int> ApplicableTargetIds { get; init; }
     }
 
     public class AttributeOptionItem

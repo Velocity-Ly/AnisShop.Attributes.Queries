@@ -19,7 +19,8 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
         public EventHistoryBuilder Created(
             string? arabicDisplayName = null,
             string? englishDisplayName = null,
-            string? type = null)
+            string? type = null,
+            string? scope = null)
         {
             var faker = new AttributeCreatedEventFaker()
                 .ForAggregate(_aggregateId, _nextVersion);
@@ -31,6 +32,9 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
 
             if (type != null)
                 faker.WithType(type);
+
+            if (scope != null)
+                faker.WithScope(scope);
 
             _events.Add(faker.Generate());
             _nextVersion++;
@@ -184,21 +188,21 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
             return this;
         }
 
-        public EventHistoryBuilder CategoriesAdded(params int[] categoryIds)
+        public EventHistoryBuilder TargetsAdded(params int[] targetIds)
         {
-            _events.Add(new AttributeApplicableCategoriesAddedEventFaker()
+            _events.Add(new AttributeApplicableTargetsAddedEventFaker()
                 .ForAggregate(_aggregateId, _nextVersion)
-                .WithCategoryIds(categoryIds)
+                .WithTargetIds(targetIds)
                 .Generate());
             _nextVersion++;
             return this;
         }
 
-        public EventHistoryBuilder CategoriesRemoved(params int[] categoryIds)
+        public EventHistoryBuilder TargetsRemoved(params int[] targetIds)
         {
-            _events.Add(new AttributeApplicableCategoriesRemovedEventFaker()
+            _events.Add(new AttributeApplicableTargetsRemovedEventFaker()
                 .ForAggregate(_aggregateId, _nextVersion)
-                .WithCategoryIds(categoryIds)
+                .WithTargetIds(targetIds)
                 .Generate());
             _nextVersion++;
             return this;

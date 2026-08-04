@@ -23,8 +23,8 @@ public class EventDeserializer : IEventDeserializer
         [EventTypeNames.AttributeOptionDisabled] = typeof(AttributeOptionDisabled),
         [EventTypeNames.AttributeOptionLabelChanged] = typeof(AttributeOptionLabelChanged),
         [EventTypeNames.AttributeOptionsReordered] = typeof(AttributeOptionsReordered),
-        [EventTypeNames.AttributeApplicableCategoriesAdded] = typeof(AttributeApplicableCategoriesAdded),
-        [EventTypeNames.AttributeApplicableCategoriesRemoved] = typeof(AttributeApplicableCategoriesRemoved),
+        [EventTypeNames.AttributeApplicableTargetsAdded] = typeof(AttributeApplicableTargetsAdded),
+        [EventTypeNames.AttributeApplicableTargetsRemoved] = typeof(AttributeApplicableTargetsRemoved),
     }.ToFrozenDictionary();
 
     private static readonly JsonSerializerOptions JsonOptions = new()

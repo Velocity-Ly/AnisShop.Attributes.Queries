@@ -31,6 +31,7 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
                 .ForAggregate(aggregateId)
                 .WithMetadata("Arabic Display Name", "Display Name", "Arabic Description", "English Description")
                 .WithType("SingleSelect")
+                .WithScope("ProductCategory")
                 .Generate();
 
             // Act
@@ -43,12 +44,13 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
             Assert.Equal(1, attribute.Version);
             Assert.Equal(AttributeStatus.Draft, attribute.Status);
             Assert.Equal(AttributeType.SingleSelect, attribute.Type);
+            Assert.Equal(AttributeScope.ProductCategory, attribute.Scope);
             Assert.Equal("Arabic Display Name", attribute.ArabicDisplayName);
             Assert.Equal("Display Name", attribute.EnglishDisplayName);
             Assert.Equal("Arabic Description", attribute.ArabicDescription);
             Assert.Equal("English Description", attribute.EnglishDescription);
             Assert.Empty(attribute.Options);
-            Assert.Empty(attribute.ApplicableCategories);
+            Assert.Empty(attribute.ApplicableTargets);
         }
 
         [Fact]

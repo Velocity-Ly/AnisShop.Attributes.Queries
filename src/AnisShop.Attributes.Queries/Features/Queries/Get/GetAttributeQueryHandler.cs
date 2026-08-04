@@ -13,7 +13,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
         {
             var attribute = await context.Attributes
                 .Include(a => a.Options.OrderBy(o => o.SortOrder))
-                .Include(a => a.ApplicableCategories)
+                .Include(a => a.ApplicableTargets)
                 .FirstOrDefaultAsync(a => a.Id == request.Id, cancellationToken)
                 ?? throw new RpcException(new Status(StatusCode.NotFound, Messages.AttributeNotFound));
 
@@ -25,6 +25,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
                 ArabicDescription = attribute.ArabicDescription,
                 EnglishDescription = attribute.EnglishDescription,
                 Type = attribute.Type,
+                Scope = attribute.Scope,
                 Status = attribute.Status,
                 ArabicDeprecationWarning = attribute.ArabicDeprecationWarning,
                 EnglishDeprecationWarning = attribute.EnglishDeprecationWarning,
@@ -38,7 +39,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.Get
                     EnglishLabel = o.EnglishLabel,
                     IsDisabled = o.IsDisabled,
                 }),
-                ApplicableCategoryIds = attribute.ApplicableCategories.Select(c => c.CategoryId),
+                ApplicableTargetIds = attribute.ApplicableTargets.Select(t => t.TargetId),
             };
         }
     }

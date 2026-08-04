@@ -41,11 +41,11 @@ public class GetAttributeIntegrationTest(LocalDbFixture fixture, ITestOutputHelp
     }
 
     [Fact]
-    public async Task Get_AttributeWithCategories_ReturnSuccessWithCategories()
+    public async Task Get_AttributeWithTargets_ReturnSuccessWithTargets()
     {
         // Arrange
         var attribute = await DatabaseHelper.InsertAsync(
-            new AttributeFaker().WithCategoryIds(1, 2, 3));
+            new AttributeFaker().WithTargetIds(1, 2, 3));
         var request = new GetRequest { Id = attribute.Id.ToString() };
 
         // Act
@@ -53,7 +53,7 @@ public class GetAttributeIntegrationTest(LocalDbFixture fixture, ITestOutputHelp
 
         // Assert
         AssertEquality.OfDomainAndResponse(attribute, response);
-        Assert.Equal(3, response.Attribute.ApplicableCategoryIds.Count);
+        Assert.Equal(3, response.Attribute.ApplicableTargetIds.Count);
     }
 
     [Theory]

@@ -1,5 +1,5 @@
 using AnisShop.Attributes.Queries.Features.Queries.Get;
-using AnisShop.Attributes.Queries.Features.Queries.GetByCategory;
+using AnisShop.Attributes.Queries.Features.Queries.GetByTarget;
 using AnisShop.Attributes.Queries.QueriesProto;
 
 namespace AnisShop.Attributes.Queries.Extensions
@@ -32,6 +32,7 @@ namespace AnisShop.Attributes.Queries.Extensions
                 ArabicDescription = result.ArabicDescription,
                 EnglishDescription = result.EnglishDescription,
                 Type = result.Type.ToProtoType(),
+                Scope = result.Scope.ToProtoScope(),
                 Status = result.Status.ToProtoStatus(),
                 ArabicDeprecationWarning = result.ArabicDeprecationWarning,
                 EnglishDeprecationWarning = result.EnglishDeprecationWarning,
@@ -39,23 +40,24 @@ namespace AnisShop.Attributes.Queries.Extensions
                 EnglishDisableReason = result.EnglishDisableReason,
                 Version = result.Version,
                 Options = { result.Options.Select(o => o.ToOptionOutput()) },
-                ApplicableCategoryIds = { result.ApplicableCategoryIds },
+                ApplicableTargetIds = { result.ApplicableTargetIds },
             };
         }
 
-        extension(GetByCategoryRequest request)
+        extension(GetByTargetRequest request)
         {
-            public GetByCategoryQuery ToQuery() => new()
+            public GetByTargetQuery ToQuery() => new()
             {
-                CategoryId = request.CategoryId,
+                Scope = request.Scope.ToDomainScope(),
+                TargetId = request.TargetId,
                 CurrentPage = request.CurrentPage,
                 PageSize = request.PageSize,
             };
         }
 
-        extension(GetByCategoryResult result)
+        extension(GetByTargetResult result)
         {
-            public GetByCategoryResponse ToResponse() => new()
+            public GetByTargetResponse ToResponse() => new()
             {
                 CurrentPage = result.CurrentPage,
                 PageSize = result.PageSize,
@@ -73,6 +75,7 @@ namespace AnisShop.Attributes.Queries.Extensions
                 ArabicDescription = item.ArabicDescription,
                 EnglishDescription = item.EnglishDescription,
                 Type = item.Type.ToProtoType(),
+                Scope = item.Scope.ToProtoScope(),
                 Status = item.Status.ToProtoStatus(),
                 ArabicDeprecationWarning = item.ArabicDeprecationWarning,
                 EnglishDeprecationWarning = item.EnglishDeprecationWarning,
@@ -80,7 +83,7 @@ namespace AnisShop.Attributes.Queries.Extensions
                 EnglishDisableReason = item.EnglishDisableReason,
                 Version = item.Version,
                 Options = { item.Options.Select(o => o.ToOptionOutput()) },
-                ApplicableCategoryIds = { item.ApplicableCategoryIds },
+                ApplicableTargetIds = { item.ApplicableTargetIds },
             };
         }
 
@@ -114,6 +117,26 @@ namespace AnisShop.Attributes.Queries.Extensions
                 Domain.AttributeStatus.Deprecated => AttributeStatus.Deprecated,
                 Domain.AttributeStatus.Disabled => AttributeStatus.Disabled,
                 _ => AttributeStatus.Unspecified,
+            };
+        }
+
+        extension(Domain.AttributeScope scope)
+        {
+            public AttributeScope ToProtoScope() => scope switch
+            {
+                Domain.AttributeScope.ProductCategory => AttributeScope.ProductCategory,
+                Domain.AttributeScope.MarketType => AttributeScope.MarketType,
+                _ => AttributeScope.Unspecified,
+            };
+        }
+
+        extension(AttributeScope scope)
+        {
+            public Domain.AttributeScope ToDomainScope() => scope switch
+            {
+                AttributeScope.ProductCategory => Domain.AttributeScope.ProductCategory,
+                AttributeScope.MarketType => Domain.AttributeScope.MarketType,
+                _ => default,
             };
         }
     }

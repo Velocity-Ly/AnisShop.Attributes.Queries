@@ -28,23 +28,25 @@ Service Bus message properties set by the publisher:
 
 ### Full Event Catalog
 
+> **2026-05-25 — "targets + scope" refactor (Commands commit `62fa3da`).** "Applicable categories" was generalized to "applicable **targets**": `CategoryId` → `TargetId`, and the two `…ApplicableCategories…` events became `…ApplicableTargets…`. A new `AttributeScope` (`ProductCategory` / `MarketType`) distinguishes what the target ids refer to, and `AttributeCreated` now carries it. The Queries side mirrors this end-to-end (read model `AttributeTarget` + `Attribute.Scope`, `GetByTarget` gRPC endpoint). The table/columns below reflect the post-refactor contract.
+
 | Event | Data Payload | Command Status | Query Projection Status |
 |---|---|---|---|
-| `AttributeCreated` | Metadata, Type | **Implemented** | **NOT IMPLEMENTED** (no consumer) |
-| `AttributePublished` | (none) | **Implemented** | **NOT IMPLEMENTED** |
-| `AttributeOptionAdded` | AttributeOption (Key + Labels) | **Implemented** | **NOT IMPLEMENTED** |
-| `AttributeApplicableCategoriesAdded` | IReadOnlyCollection\<CategoryId\> | **Implemented** | **NOT IMPLEMENTED** |
-| `AttributeMetadataChanged` | AttributeMetadata | **Implemented** | **NOT IMPLEMENTED** |
-| `AttributeDeleted` | (none) | NOT implemented | NOT IMPLEMENTED |
-| `AttributeMarkedAsDeprecated` | AttributeDeprecationWarning | NOT implemented | NOT IMPLEMENTED |
-| `AttributeDeprecationWarningRemoved` | (none) | NOT implemented | NOT IMPLEMENTED |
-| `AttributeDisabled` | AttributeDisableReason | NOT implemented | NOT IMPLEMENTED |
-| `AttributeOptionRemoved` | AttributeOptionKey | NOT implemented | NOT IMPLEMENTED |
-| `AttributeOptionDisabled` | AttributeOptionKey | NOT implemented | NOT IMPLEMENTED |
-| `AttributeOptionLabelChanged` | AttributeOption | NOT implemented | NOT IMPLEMENTED |
-| `AttributeOptionsReordered` | ICollection\<AttributeOptionKey\> | NOT implemented | NOT IMPLEMENTED |
-| `AttributeTypeChanged` | AttributeType | NOT implemented | NOT IMPLEMENTED |
-| `AttributeApplicableCategoriesRemoved` | ICollection\<CategoryId\> | NOT implemented | NOT IMPLEMENTED |
+| `AttributeCreated` | Metadata, Type, **Scope** | **Implemented** | **Implemented** |
+| `AttributePublished` | (none) | **Implemented** | **Implemented** |
+| `AttributeOptionAdded` | AttributeOption (Key + Labels) | **Implemented** | **Implemented** |
+| `AttributeApplicableTargetsAdded` | IReadOnlyCollection\<TargetId\> | **Implemented** | **Implemented** |
+| `AttributeMetadataChanged` | AttributeMetadata | **Implemented** | **Implemented** |
+| `AttributeDeleted` | (none) | (commands status varies) | **Implemented** |
+| `AttributeMarkedAsDeprecated` | AttributeDeprecationWarning | (commands status varies) | **Implemented** |
+| `AttributeDeprecationWarningRemoved` | (none) | (commands status varies) | **Implemented** |
+| `AttributeDisabled` | AttributeDisableReason | (commands status varies) | **Implemented** |
+| `AttributeOptionRemoved` | AttributeOptionKey | (commands status varies) | **Implemented** |
+| `AttributeOptionDisabled` | AttributeOptionKey | (commands status varies) | **Implemented** |
+| `AttributeOptionLabelChanged` | AttributeOption | (commands status varies) | **Implemented** |
+| `AttributeOptionsReordered` | NonEmptyCollection\<AttributeOptionKey\> | (commands status varies) | **Implemented** |
+| `AttributeTypeChanged` | AttributeType | (commands status varies) | **Implemented** |
+| `AttributeApplicableTargetsRemoved` | ICollection\<TargetId\> | (commands status varies) | **Implemented** |
 
 ---
 
@@ -54,29 +56,30 @@ Service Bus message properties set by the publisher:
 ```
 AttributeBase (discriminated union)
 ├── NoAttribute
-├── ExistingAttribute { Id, Metadata, Type, ApplicableCategories, Options, IsPublished }
+├── ExistingAttribute { Id, Metadata, Type, Scope, ApplicableTargets, Options, IsPublished }
 │   ├── DeprecatedAttribute { ..., DeprecationWarning }
 │   └── DisabledAttribute { ..., DisableReason }
 └── DeletedAttribute { Id }
 ```
+`Scope` is an `AttributeScope` value (`ProductCategory` / `MarketType`); `ApplicableTargets` is a set of `TargetId` (int) interpreted within that scope.
 
 ### Queries Read Model (Relational)
 ```
-Attribute { Id, ArabicDisplayName, EnglishDisplayName, ArabicDescription, EnglishDescription, Type, Status, Version }
+Attribute { Id, ArabicDisplayName, EnglishDisplayName, ArabicDescription, EnglishDescription, Type, Scope, Status, DeprecationWarning(ar/en), DisableReason(ar/en), Version }
 ├── AttributeOption { AttributeId, Key, ArabicLabel, EnglishLabel, IsDisabled, SortOrder }
-└── AttributeCategory { AttributeId, CategoryId }
+└── AttributeTarget { AttributeId, TargetId }
 ```
 
 ### How Events Should Map to Read Model Updates
 
 | Event | Read Model Mutation |
 |---|---|
-| `AttributeCreated` | INSERT Attribute (Status=Draft, Version=1) |
+| `AttributeCreated` | INSERT Attribute (Status=Draft, Version=1, Scope set) |
 | `AttributeOptionAdded` | INSERT AttributeOption (SortOrder = next increment) |
-| `AttributeApplicableCategoriesAdded` | INSERT AttributeCategory rows |
+| `AttributeApplicableTargetsAdded` | INSERT AttributeTarget rows |
 | `AttributePublished` | UPDATE Attribute SET Status=Published |
 | `AttributeMetadataChanged` | UPDATE Attribute display names & descriptions |
-| `AttributeDeleted` | DELETE Attribute (cascade deletes options & categories) |
+| `AttributeDeleted` | DELETE Attribute (cascade deletes options & targets) |
 | `AttributeMarkedAsDeprecated` | UPDATE Attribute SET Status=Deprecated |
 | `AttributeDeprecationWarningRemoved` | UPDATE Attribute SET Status=Published (back from deprecated) |
 | `AttributeDisabled` | UPDATE Attribute SET Status=Disabled |
@@ -85,7 +88,7 @@ Attribute { Id, ArabicDisplayName, EnglishDisplayName, ArabicDescription, Englis
 | `AttributeOptionLabelChanged` | UPDATE AttributeOption labels |
 | `AttributeOptionsReordered` | UPDATE SortOrder for each option |
 | `AttributeTypeChanged` | UPDATE Attribute SET Type=newType |
-| `AttributeApplicableCategoriesRemoved` | DELETE AttributeCategory rows |
+| `AttributeApplicableTargetsRemoved` | DELETE AttributeTarget rows |
 
 **Important**: Always UPDATE `Attribute.Version` to the event's Version on every event.
 
@@ -173,12 +176,13 @@ When building the event consumer, deserialize directly to simple DTOs, not to Co
 
 | Endpoint | Input | Output | Notes |
 |---|---|---|---|
-| `Get` | `id` (string/Guid) | Full attribute with options + categories | Eager loads Options (ordered by SortOrder) and Categories |
-| `GetByCategory` | `categoryId`, `currentPage`, `pageSize` | Paginated list of attributes | Filters by category, includes options ordered by SortOrder |
+| `Get` | `id` (string/Guid) | Full attribute with options + targets | Eager loads Options (ordered by SortOrder) and ApplicableTargets; output carries `scope` + `applicable_target_ids` |
+| `GetByTarget` | `scope`, `target_id`, `current_page`, `page_size` | Paginated list of attributes | Filters by **both** scope AND target id (`a.Scope == scope && a.ApplicableTargets.Any(t => t.TargetId == target_id)`) — target ids are only meaningful within a scope, so scope is required |
 
 Proto enums exposed:
 - `AttributeType`: UNSPECIFIED, SINGLE_SELECT, MULTI_SELECT
 - `AttributeStatus`: UNSPECIFIED, DRAFT, PUBLISHED, DEPRECATED, DISABLED
+- `AttributeScope`: UNSPECIFIED, PRODUCT_CATEGORY, MARKET_TYPE
 
 ---
 

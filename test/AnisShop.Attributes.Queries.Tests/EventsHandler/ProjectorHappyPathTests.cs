@@ -163,13 +163,13 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
         }
 
         [Fact]
-        public async Task Handle_Deleted_WithOptionsAndCategories_CascadeDeletesChildren()
+        public async Task Handle_Deleted_WithOptionsAndTargets_CascadeDeletesChildren()
         {
-            // Arrange: seed an attribute at V1 carrying both options and categories
+            // Arrange: seed an attribute at V1 carrying both options and targets
             var attribute = await _databaseHelper.InsertAsync(
                 new AttributeFaker()
                     .WithOptions(3)
-                    .WithCategoryIds(10, 20)
+                    .WithTargetIds(10, 20)
                     .WithVersion(1));
 
             var @event = new AttributeDeletedEventFaker()
@@ -185,23 +185,23 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
 
             var optionCount = await _databaseHelper.Query(db =>
                 db.AttributeOptions.CountAsync(o => o.AttributeId == attribute.Id));
-            var categoryCount = await _databaseHelper.Query(db =>
-                db.AttributeCategories.CountAsync(c => c.AttributeId == attribute.Id));
+            var targetCount = await _databaseHelper.Query(db =>
+                db.AttributeTargets.CountAsync(t => t.AttributeId == attribute.Id));
 
             Assert.Equal(0, optionCount);
-            Assert.Equal(0, categoryCount);
+            Assert.Equal(0, targetCount);
         }
 
         [Fact]
-        public async Task Handle_CategoriesAdded_InsertsCategories()
+        public async Task Handle_TargetsAdded_InsertsTargets()
         {
-            // Arrange: seed an attribute at V1 with no categories
+            // Arrange: seed an attribute at V1 with no targets
             var attribute = await _databaseHelper.InsertAsync(
                 new AttributeFaker().WithVersion(1));
 
-            var @event = new AttributeApplicableCategoriesAddedEventFaker()
+            var @event = new AttributeApplicableTargetsAddedEventFaker()
                 .ForAggregate(attribute.Id, version: 2)
-                .WithCategoryIds(10, 20)
+                .WithTargetIds(10, 20)
                 .Generate();
 
             // Act
@@ -210,30 +210,30 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
             // Assert
             Assert.True(result);
             await AssertAttributeState.HasVersion(_factory, attribute.Id, 2);
-            await AssertAttributeState.HasCategories(_factory, attribute.Id, 10, 20);
+            await AssertAttributeState.HasTargets(_factory, attribute.Id, 10, 20);
         }
 
         [Fact]
-        public async Task Handle_CategoriesRemoved_DeletesOnlyRequestedCategories()
+        public async Task Handle_TargetsRemoved_DeletesOnlyRequestedTargets()
         {
-            // Arrange: seed an attribute at V1 with three categories
+            // Arrange: seed an attribute at V1 with three targets
             var attribute = await _databaseHelper.InsertAsync(
                 new AttributeFaker()
-                    .WithCategoryIds(10, 20, 30)
+                    .WithTargetIds(10, 20, 30)
                     .WithVersion(1));
 
-            var @event = new AttributeApplicableCategoriesRemovedEventFaker()
+            var @event = new AttributeApplicableTargetsRemovedEventFaker()
                 .ForAggregate(attribute.Id, version: 2)
-                .WithCategoryIds(20)
+                .WithTargetIds(20)
                 .Generate();
 
             // Act
             var result = await _mediatorHelper.SendEvents(@event);
 
-            // Assert: only category 20 removed
+            // Assert: only target 20 removed
             Assert.True(result);
             await AssertAttributeState.HasVersion(_factory, attribute.Id, 2);
-            await AssertAttributeState.HasCategories(_factory, attribute.Id, 10, 30);
+            await AssertAttributeState.HasTargets(_factory, attribute.Id, 10, 30);
         }
 
         [Fact]

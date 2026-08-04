@@ -13,6 +13,7 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Events
         private string? _arabicDescription;
         private string? _englishDescription;
         private string? _type;
+        private string? _scope;
 
         public AttributeCreatedEventFaker ForAggregate(Guid aggregateId, int version = 1)
         {
@@ -40,6 +41,12 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Events
             return this;
         }
 
+        public AttributeCreatedEventFaker WithScope(string scope)
+        {
+            _scope = scope;
+            return this;
+        }
+
         public AttributeCreated Generate() => new()
         {
             AggregateId = _aggregateId,
@@ -55,7 +62,8 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Events
                     ArabicDescription = _arabicDescription ?? _faker.Lorem.Sentence(),
                     EnglishDescription = _englishDescription ?? _faker.Lorem.Sentence()
                 },
-                Type = _type ?? _faker.PickRandom("SingleSelect", "MultiSelect")
+                Type = _type ?? _faker.PickRandom("SingleSelect", "MultiSelect"),
+                Scope = _scope ?? _faker.PickRandom("ProductCategory", "MarketType")
             }
         };
     }

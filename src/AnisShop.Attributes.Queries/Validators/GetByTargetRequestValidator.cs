@@ -4,13 +4,17 @@ using FluentValidation;
 
 namespace AnisShop.Attributes.Queries.Validators
 {
-    public class GetByCategoryRequestValidator : AbstractValidator<GetByCategoryRequest>
+    public class GetByTargetRequestValidator : AbstractValidator<GetByTargetRequest>
     {
-        public GetByCategoryRequestValidator()
+        public GetByTargetRequestValidator()
         {
-            RuleFor(x => x.CategoryId)
+            RuleFor(x => x.Scope)
+                .NotEqual(AttributeScope.Unspecified)
+                .WithMessage(Messages.InvalidScope);
+
+            RuleFor(x => x.TargetId)
                 .GreaterThan(0)
-                .WithMessage(Messages.InvalidCategoryId);
+                .WithMessage(Messages.InvalidTargetId);
 
             RuleFor(x => x.CurrentPage)
                 .GreaterThan(0);

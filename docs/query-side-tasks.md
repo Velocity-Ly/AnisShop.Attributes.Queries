@@ -264,3 +264,24 @@ environment) fixed it. No `src` changes — all fixes are test-only.
 
 **Verified**: integration suite **22/22** green (5 new + 17 previously-red query tests now boot);
 unit suite still **58/58** green (the `ServiceCollectionExtensions` change is non-breaking).
+
+---
+
+## Task 9 — "Targets + Scope" Refactor (mirror Commands `62fa3da`)
+**Status**: DONE (2026-05-25)
+
+Commands generalized "applicable categories" into "applicable **targets**" (commit `62fa3da` *"Refactor attributes to support multiple target types"*): `CategoryId` → `TargetId`, the two `…ApplicableCategories…` events became `…ApplicableTargets…` (the publisher stamps the Service Bus `Subject`/`Type` with `@event.GetType().Name`, so the wire discriminator changed), and a new `AttributeScope` (`ProductCategory` / `MarketType`) was added to `AttributeCreated` to say what the target ids refer to. **Before this task the two renamed target events silently fell into the deserializer's "unknown event type" branch and never projected.** Full parity was chosen — the rename is carried through the read model and the outward gRPC contract.
+
+**`src` changes**:
+- **Domain**: new `AttributeScope` enum (`ProductCategory=1`, `MarketType=2`); `AttributeCategory` → `AttributeTarget` (`CategoryId` → `TargetId`); `Attribute` gained a `Scope` property (set in `Create`), `ApplicableCategories` → `ApplicableTargets`, `AddCategories`/`RemoveCategories` → `AddTargets`/`RemoveTargets`.
+- **Events**: `AttributeCreated.EventData` gained `string Scope`; `AttributeApplicableCategoriesAdded`/`Removed` → `AttributeApplicableTargetsAdded`/`Removed` with `ApplicableTargetIds` (`TargetId` is a `ValueObject<int>` on Commands, so the JSON shape is still an int array); `EventTypeNames` + `EventDeserializer` type map renamed.
+- **Handler**: `AttributeCreated` now parses `Scope` (`Enum.Parse<AttributeScope>`, mirroring `ParseType`); target add/remove cases call `AddTargets`/`RemoveTargets`; `.Include(a => a.ApplicableTargets)`.
+- **Persistence**: `AttributeTargetConfigurations` (table key `{AttributeId, TargetId}`, index on `TargetId`); `AttributeConfigurations` maps the `ApplicableTargets` nav; `DbSet<AttributeTarget> AttributeTargets`. `Scope` persists as `int` (no explicit config, same as `Type`/`Status`).
+- **Proto (both `src` + test copy)**: `GetByCategory` → `GetByTarget`; `GetByTargetRequest { scope, target_id, current_page, page_size }`; `AttributeOutput.applicable_category_ids` → `applicable_target_ids` (still field 9) + new `scope` (field 15); new `AttributeScope` enum.
+- **Query stack**: `Features/Queries/GetByCategory/` → `GetByTarget/` (query carries `Scope`+`TargetId`; handler filters on **both** `Scope == request.Scope` AND target membership); `GetAttributeResult`/handler add `Scope` + `ApplicableTargetIds`; `GrpcServices` `GetByTarget` override; `QueriesExtensions` adds `ToProtoScope()`/`ToDomainScope()` and the renamed maps; `GetByTargetRequestValidator` (scope ≠ Unspecified, target_id > 0); `Messages` resource `InvalidCategoryId` → `InvalidTargetId` + new `InvalidScope`; `Titles` `CategoryId` → `TargetId`.
+
+**MIGRATION**: the only migration (`20260523103612_InitialCreate`) + the model snapshot were **deleted** at the user's request — the service has not been deployed to any environment, more entity changes are expected the same day, and the user will regenerate migrations once everything is final. Tests are unaffected (unit = InMemory; integration = `EnsureDeleted`→`EnsureCreated`, model-driven). `DatabaseRunner.MigrateAsync()` no-ops with zero migrations — fine until the user re-adds them. **The Task 2/8 notes above about `InitialCreate` are now historical.**
+
+**Test changes**: `AttributeCategoryFaker` → `AttributeTargetFaker`; `AttributeFaker` gained `WithScope` + `WithTargetIds` (random `Scope` by default); `AttributeCreatedEventFaker` gained `WithScope`; the two target event fakers + `GetByCategoryRequestFaker` → `GetByTargetRequestFaker`; `EventHistoryBuilder.Created` takes an optional `scope`, `CategoriesAdded`/`Removed` → `TargetsAdded`/`Removed`; asserts `OfCategories` → `OfTargets` and `HasCategories` → `HasTargets`, both `AssertEquality` overloads now also assert `Scope` (honouring "target all properties"); `GetByCategoryQueryTests`/`IntegrationTest` → `GetByTarget*`. **Two new tests** lock in the corrected behaviour: `GetByTarget_SameTargetIdDifferentScope_ExcludesMismatchedScope` (unit + integration) and `GetByTarget_WithUnspecifiedScope_ThrowsInvalidArgument`.
+
+**Verified**: `src` builds clean (0/0); unit suite **60/60** green (was 58, +2 scope tests); integration suite **23/23** green (was 22, +1 scope test). No hardcoded Arabic introduced (scope tests use the `ProductCategory`/`MarketType` enum names, not Arabic).

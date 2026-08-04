@@ -59,7 +59,7 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
                 .Published()
                 .MetadataChanged("Arabic Name V3", "Name V3")
                 .OptionAdded("opt-1", "Arabic Option 1", "Option 1")
-                .CategoriesAdded(10, 20)
+                .TargetsAdded(10, 20)
                 .Build();
 
             // First, apply V1-V3 to set up the DB state
@@ -77,7 +77,7 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
             var attribute = await AssertAttributeState.Exists(_factory, builder.AggregateId);
             Assert.Equal(5, attribute.Version);
             await AssertAttributeState.HasOptions(_factory, builder.AggregateId, 1);
-            await AssertAttributeState.HasCategories(_factory, builder.AggregateId, 10, 20);
+            await AssertAttributeState.HasTargets(_factory, builder.AggregateId, 10, 20);
         }
 
         [Fact]

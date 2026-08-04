@@ -14,6 +14,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
             Assert.Equal(attribute.ArabicDescription, response.Attribute.ArabicDescription);
             Assert.Equal(attribute.EnglishDescription, response.Attribute.EnglishDescription);
             Assert.Equal((int)attribute.Type, (int)response.Attribute.Type);
+            Assert.Equal((int)attribute.Scope, (int)response.Attribute.Scope);
             Assert.Equal((int)attribute.Status, (int)response.Attribute.Status);
             Assert.Equal(attribute.ArabicDeprecationWarning, response.Attribute.ArabicDeprecationWarning);
             Assert.Equal(attribute.EnglishDeprecationWarning, response.Attribute.EnglishDeprecationWarning);
@@ -22,7 +23,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
             Assert.Equal(attribute.Version, response.Attribute.Version);
 
             OfOptions(attribute.Options, response.Attribute.Options);
-            OfCategories(attribute.ApplicableCategories, response.Attribute.ApplicableCategoryIds);
+            OfTargets(attribute.ApplicableTargets, response.Attribute.ApplicableTargetIds);
         }
 
         public static void OfOptions(ICollection<SourceDomain.AttributeOption> expected, IEnumerable<AttributeOptionOutput> actual)
@@ -39,14 +40,14 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
             }
         }
 
-        public static void OfCategories(ICollection<SourceDomain.AttributeCategory> expected, IEnumerable<int> actual)
+        public static void OfTargets(ICollection<SourceDomain.AttributeTarget> expected, IEnumerable<int> actual)
         {
             var actualList = actual.ToList();
             Assert.Equal(expected.Count, actualList.Count);
 
-            foreach (var expectedCategory in expected)
+            foreach (var expectedTarget in expected)
             {
-                Assert.Contains(expectedCategory.CategoryId, actualList);
+                Assert.Contains(expectedTarget.TargetId, actualList);
             }
         }
     }

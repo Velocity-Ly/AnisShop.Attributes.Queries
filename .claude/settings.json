@@ -4,12 +4,13 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\emada\\\\source\\\\repos\\\\eshop\\\\EshopCode\\\\Main\\\\Attributes\\\\AnisShop.Attributes.Commands\" -Recurse -Name)",
       "PowerShell(head -100)",
       "PowerShell(dotnet test test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj --filter \"FullyQualifiedName~Queries.GetAttributeQueryTests\" --nologo -v q 2>&1)",
-      "PowerShell(dotnet test test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj --filter \"FullyQualifiedName~Queries.GetAttributeQueryTests|FullyQualifiedName~Queries.GetByCategoryQueryTests\" --nologo -v q 2>&1)",
+      "PowerShell(dotnet test test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj --filter \"FullyQualifiedName~Queries.GetAttributeQueryTests|FullyQualifiedName~Queries.GetByTargetQueryTests\" --nologo -v q 2>&1)",
       "PowerShell(dotnet build test/AnisShop.Attributes.Queries.IntegrationTests/AnisShop.Attributes.Queries.IntegrationTests.csproj --nologo -v q 2>&1)",
       "PowerShell(dotnet build \"c:\\\\Users\\\\emada\\\\source\\\\repos\\\\eshop\\\\EshopCode\\\\Main\\\\Attributes\\\\AnisShop.Attributes.Queries\\\\test\\\\AnisShop.Attributes.Queries.Tests\\\\AnisShop.Attributes.Queries.Tests.csproj\" --nologo -v q 2>&1)",
       "Bash(echo \"---EXIT:$?---\")",
       "PowerShell(dotnet build src/AnisShop.Attributes.Queries/AnisShop.Attributes.Queries.csproj -v q --nologo)",
-      "PowerShell(dotnet test test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj --nologo 2>&1)"
+      "PowerShell(dotnet test test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj --nologo 2>&1)",
+      "Bash(git rm *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\emada\\.claude\\projects\\c--Users-emada-source-repos-eshop-EshopCode-Main-Attributes-AnisShop-Attributes-Queries\\memory"

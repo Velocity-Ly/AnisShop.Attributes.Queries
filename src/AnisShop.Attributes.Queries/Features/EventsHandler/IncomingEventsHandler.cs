@@ -47,7 +47,7 @@ namespace AnisShop.Attributes.Queries.Features.EventsHandler
 
             var attribute = await _dbContext.Attributes
                 .Include(a => a.Options)
-                .Include(a => a.ApplicableCategories)
+                .Include(a => a.ApplicableTargets)
                 .SingleOrDefaultAsync(a => a.Id == aggregateId, cancellationToken);
 
             var currentVersion = attribute?.Version ?? 0;
@@ -102,6 +102,7 @@ namespace AnisShop.Attributes.Queries.Features.EventsHandler
                         created.Data.Metadata.ArabicDescription,
                         created.Data.Metadata.EnglishDescription,
                         ParseType(created.Data.Type),
+                        ParseScope(created.Data.Scope),
                         created.Version);
                     _dbContext.Attributes.Add(attribute);
                     return attribute;
@@ -141,12 +142,12 @@ namespace AnisShop.Attributes.Queries.Features.EventsHandler
                         disabled.Version);
                     return attribute;
 
-                case AttributeApplicableCategoriesAdded categoriesAdded:
-                    attribute!.AddCategories(categoriesAdded.Data.ApplicableCategoryIds, categoriesAdded.Version);
+                case AttributeApplicableTargetsAdded targetsAdded:
+                    attribute!.AddTargets(targetsAdded.Data.ApplicableTargetIds, targetsAdded.Version);
                     return attribute;
 
-                case AttributeApplicableCategoriesRemoved categoriesRemoved:
-                    attribute!.RemoveCategories(categoriesRemoved.Data.ApplicableCategoryIds, categoriesRemoved.Version);
+                case AttributeApplicableTargetsRemoved targetsRemoved:
+                    attribute!.RemoveTargets(targetsRemoved.Data.ApplicableTargetIds, targetsRemoved.Version);
                     return attribute;
 
                 case AttributeDeleted:
@@ -188,5 +189,8 @@ namespace AnisShop.Attributes.Queries.Features.EventsHandler
 
         private static AttributeType ParseType(string type) =>
             Enum.Parse<AttributeType>(type, ignoreCase: true);
+
+        private static AttributeScope ParseScope(string scope) =>
+            Enum.Parse<AttributeScope>(scope, ignoreCase: true);
     }
 }

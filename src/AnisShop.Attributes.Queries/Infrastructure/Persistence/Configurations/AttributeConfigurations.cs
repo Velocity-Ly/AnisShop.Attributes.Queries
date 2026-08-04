@@ -27,7 +27,7 @@ namespace AnisShop.Attributes.Queries.Infrastructure.Persistence.Configurations
                 .HasForeignKey(x => x.AttributeId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.HasMany(x => x.ApplicableCategories)
+            builder.HasMany(x => x.ApplicableTargets)
                 .WithOne(x => x.Attribute)
                 .HasForeignKey(x => x.AttributeId)
                 .OnDelete(DeleteBehavior.Cascade);

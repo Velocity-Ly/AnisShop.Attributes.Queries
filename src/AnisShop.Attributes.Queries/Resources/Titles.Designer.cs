@@ -70,11 +70,11 @@ namespace AnisShop.Attributes.Queries.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Category ID.
+        ///   Looks up a localized string similar to Target ID.
         /// </summary>
-        public static string CategoryId {
+        public static string TargetId {
             get {
-                return ResourceManager.GetString("CategoryId", resourceCulture);
+                return ResourceManager.GetString("TargetId", resourceCulture);
             }
         }
     }

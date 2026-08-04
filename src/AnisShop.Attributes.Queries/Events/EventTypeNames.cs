@@ -15,6 +15,6 @@ public static class EventTypeNames
     public const string AttributeOptionDisabled = "AttributeOptionDisabled";
     public const string AttributeOptionLabelChanged = "AttributeOptionLabelChanged";
     public const string AttributeOptionsReordered = "AttributeOptionsReordered";
-    public const string AttributeApplicableCategoriesAdded = "AttributeApplicableCategoriesAdded";
-    public const string AttributeApplicableCategoriesRemoved = "AttributeApplicableCategoriesRemoved";
+    public const string AttributeApplicableTargetsAdded = "AttributeApplicableTargetsAdded";
+    public const string AttributeApplicableTargetsRemoved = "AttributeApplicableTargetsRemoved";
 }

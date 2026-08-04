@@ -3,17 +3,18 @@ using AnisShop.Attributes.Queries.Infrastructure.Persistence;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
 
-namespace AnisShop.Attributes.Queries.Features.Queries.GetByCategory
+namespace AnisShop.Attributes.Queries.Features.Queries.GetByTarget
 {
-    public class GetByCategoryQueryHandler(AttributesDbContext context)
-        : IRequestHandler<GetByCategoryQuery, GetByCategoryResult>
+    public class GetByTargetQueryHandler(AttributesDbContext context)
+        : IRequestHandler<GetByTargetQuery, GetByTargetResult>
     {
-        public async ValueTask<GetByCategoryResult> Handle(GetByCategoryQuery request, CancellationToken cancellationToken)
+        public async ValueTask<GetByTargetResult> Handle(GetByTargetQuery request, CancellationToken cancellationToken)
         {
             var query = context.Attributes
                 .Include(a => a.Options.OrderBy(o => o.SortOrder))
-                .Include(a => a.ApplicableCategories)
-                .Where(a => a.ApplicableCategories.Any(c => c.CategoryId == request.CategoryId));
+                .Include(a => a.ApplicableTargets)
+                .Where(a => a.Scope == request.Scope
+                    && a.ApplicableTargets.Any(t => t.TargetId == request.TargetId));
 
             var attributes = await query
                 .Skip((request.CurrentPage - 1) * request.PageSize)
@@ -26,6 +27,7 @@ namespace AnisShop.Attributes.Queries.Features.Queries.GetByCategory
                     ArabicDescription = a.ArabicDescription,
                     EnglishDescription = a.EnglishDescription,
                     Type = a.Type,
+                    Scope = a.Scope,
                     Status = a.Status,
                     ArabicDeprecationWarning = a.ArabicDeprecationWarning,
                     EnglishDeprecationWarning = a.EnglishDeprecationWarning,
@@ -39,11 +41,11 @@ namespace AnisShop.Attributes.Queries.Features.Queries.GetByCategory
                         EnglishLabel = o.EnglishLabel,
                         IsDisabled = o.IsDisabled,
                     }).ToList(),
-                    ApplicableCategoryIds = a.ApplicableCategories.Select(c => c.CategoryId).ToList(),
+                    ApplicableTargetIds = a.ApplicableTargets.Select(t => t.TargetId).ToList(),
                 })
                 .ToListAsync(cancellationToken);
 
-            return new GetByCategoryResult
+            return new GetByTargetResult
             {
                 Attributes = attributes,
                 CurrentPage = request.CurrentPage,

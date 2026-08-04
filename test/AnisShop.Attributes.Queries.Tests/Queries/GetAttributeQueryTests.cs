@@ -57,11 +57,11 @@ namespace AnisShop.Attributes.Queries.Tests.Queries
         }
 
         [Fact]
-        public async Task Get_AttributeWithCategories_ReturnSuccessWithCategories()
+        public async Task Get_AttributeWithTargets_ReturnSuccessWithTargets()
         {
             // Arrange
             var attribute = await _databaseHelper.InsertAsync(
-                new AttributeFaker().WithCategoryIds(1, 2, 3));
+                new AttributeFaker().WithTargetIds(1, 2, 3));
             var request = new GetRequest { Id = attribute.Id.ToString() };
 
             // Act
@@ -69,10 +69,10 @@ namespace AnisShop.Attributes.Queries.Tests.Queries
 
             // Assert
             AssertEquality.OfDomainAndResponse(attribute, response);
-            Assert.Equal(3, response.Attribute.ApplicableCategoryIds.Count);
-            Assert.Contains(1, response.Attribute.ApplicableCategoryIds);
-            Assert.Contains(2, response.Attribute.ApplicableCategoryIds);
-            Assert.Contains(3, response.Attribute.ApplicableCategoryIds);
+            Assert.Equal(3, response.Attribute.ApplicableTargetIds.Count);
+            Assert.Contains(1, response.Attribute.ApplicableTargetIds);
+            Assert.Contains(2, response.Attribute.ApplicableTargetIds);
+            Assert.Contains(3, response.Attribute.ApplicableTargetIds);
         }
 
         [Theory]

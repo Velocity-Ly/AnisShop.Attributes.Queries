@@ -64,7 +64,10 @@
   <data name="InvalidAttributeId" xml:space="preserve">
     <value>Invalid attribute ID</value>
   </data>
-  <data name="InvalidCategoryId" xml:space="preserve">
-    <value>Invalid category ID</value>
+  <data name="InvalidTargetId" xml:space="preserve">
+    <value>Invalid target ID</value>
+  </data>
+  <data name="InvalidScope" xml:space="preserve">
+    <value>Invalid scope</value>
   </data>
 </root>

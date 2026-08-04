@@ -14,7 +14,7 @@ namespace AnisShop.Attributes.Queries.GrpcServices
             return result.ToResponse();
         }
 
-        public override async Task<GetByCategoryResponse> GetByCategory(GetByCategoryRequest request, ServerCallContext context)
+        public override async Task<GetByTargetResponse> GetByTarget(GetByTargetRequest request, ServerCallContext context)
         {
             var query = request.ToQuery();
             var result = await mediator.Send(query, context.CancellationToken);

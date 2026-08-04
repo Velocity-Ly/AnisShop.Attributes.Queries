@@ -5,7 +5,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
 {
     public static partial class AssertEquality
     {
-        public static void OfDomainAndQueryResponse(SourceDomain.Attribute[] attributes, GetByCategoryResponse response)
+        public static void OfDomainAndQueryResponse(SourceDomain.Attribute[] attributes, GetByTargetResponse response)
         {
             Assert.Equal(attributes.Length, response.Attributes.Count);
 
@@ -17,6 +17,7 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
                 Assert.Equal(attribute.ArabicDescription, matchingAttribute.ArabicDescription);
                 Assert.Equal(attribute.EnglishDescription, matchingAttribute.EnglishDescription);
                 Assert.Equal((int)attribute.Type, (int)matchingAttribute.Type);
+                Assert.Equal((int)attribute.Scope, (int)matchingAttribute.Scope);
                 Assert.Equal((int)attribute.Status, (int)matchingAttribute.Status);
                 Assert.Equal(attribute.ArabicDeprecationWarning, matchingAttribute.ArabicDeprecationWarning);
                 Assert.Equal(attribute.EnglishDeprecationWarning, matchingAttribute.EnglishDeprecationWarning);
@@ -25,11 +26,11 @@ namespace AnisShop.Attributes.Queries.Tests.Asserts
                 Assert.Equal(attribute.Version, matchingAttribute.Version);
 
                 OfOptions(attribute.Options, matchingAttribute.Options);
-                OfCategories(attribute.ApplicableCategories, matchingAttribute.ApplicableCategoryIds);
+                OfTargets(attribute.ApplicableTargets, matchingAttribute.ApplicableTargetIds);
             }
         }
 
-        public static void OfPagination(GetByCategoryResponse response, int expectedCurrentPage, int expectedPageSize, int expectedTotal)
+        public static void OfPagination(GetByTargetResponse response, int expectedCurrentPage, int expectedPageSize, int expectedTotal)
         {
             Assert.Equal(expectedCurrentPage, response.CurrentPage);
             Assert.Equal(expectedPageSize, response.PageSize);

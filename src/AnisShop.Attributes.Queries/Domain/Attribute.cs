@@ -9,6 +9,7 @@ namespace AnisShop.Attributes.Queries.Domain
             string? arabicDescription,
             string? englishDescription,
             AttributeType type,
+            AttributeScope scope,
             AttributeStatus status,
             int version)
         {
@@ -18,6 +19,7 @@ namespace AnisShop.Attributes.Queries.Domain
             ArabicDescription = arabicDescription;
             EnglishDescription = englishDescription;
             Type = type;
+            Scope = scope;
             Status = status;
             Version = version;
         }
@@ -28,6 +30,7 @@ namespace AnisShop.Attributes.Queries.Domain
         public string? ArabicDescription { get; private set; }
         public string? EnglishDescription { get; private set; }
         public AttributeType Type { get; private set; }
+        public AttributeScope Scope { get; private set; }
         public AttributeStatus Status { get; private set; }
         public string? ArabicDeprecationWarning { get; private set; }
         public string? EnglishDeprecationWarning { get; private set; }
@@ -36,7 +39,7 @@ namespace AnisShop.Attributes.Queries.Domain
         public int Version { get; private set; }
 
         public ICollection<AttributeOption> Options { get; private set; } = [];
-        public ICollection<AttributeCategory> ApplicableCategories { get; private set; } = [];
+        public ICollection<AttributeTarget> ApplicableTargets { get; private set; } = [];
 
         public static Attribute Create(
             Guid id,
@@ -45,6 +48,7 @@ namespace AnisShop.Attributes.Queries.Domain
             string? arabicDescription,
             string? englishDescription,
             AttributeType type,
+            AttributeScope scope,
             int version)
             => new(
                 id,
@@ -53,6 +57,7 @@ namespace AnisShop.Attributes.Queries.Domain
                 arabicDescription,
                 englishDescription,
                 type,
+                scope,
                 AttributeStatus.Draft,
                 version);
 
@@ -106,26 +111,26 @@ namespace AnisShop.Attributes.Queries.Domain
             Version = version;
         }
 
-        public void AddCategories(IEnumerable<int> categoryIds, int version)
+        public void AddTargets(IEnumerable<int> targetIds, int version)
         {
-            foreach (var categoryId in categoryIds)
+            foreach (var targetId in targetIds)
             {
-                if (ApplicableCategories.Any(c => c.CategoryId == categoryId))
+                if (ApplicableTargets.Any(t => t.TargetId == targetId))
                     continue;
 
-                ApplicableCategories.Add(AttributeCategory.Create(Id, categoryId));
+                ApplicableTargets.Add(AttributeTarget.Create(Id, targetId));
             }
 
             Version = version;
         }
 
-        public void RemoveCategories(IEnumerable<int> categoryIds, int version)
+        public void RemoveTargets(IEnumerable<int> targetIds, int version)
         {
-            var ids = categoryIds.ToHashSet();
-            var toRemove = ApplicableCategories.Where(c => ids.Contains(c.CategoryId)).ToList();
+            var ids = targetIds.ToHashSet();
+            var toRemove = ApplicableTargets.Where(t => ids.Contains(t.TargetId)).ToList();
 
-            foreach (var category in toRemove)
-                ApplicableCategories.Remove(category);
+            foreach (var target in toRemove)
+                ApplicableTargets.Remove(target);
 
             Version = version;
         }

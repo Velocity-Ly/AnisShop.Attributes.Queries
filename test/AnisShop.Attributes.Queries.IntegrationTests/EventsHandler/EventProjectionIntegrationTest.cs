@@ -19,14 +19,14 @@ public class EventProjectionIntegrationTest(LocalDbFixture fixture, ITestOutputH
     : SqlIntegrationTestBase(fixture, output)
 {
     [Fact]
-    public async Task FullEventSequence_CreateOptionsCategoriesPublish_ProjectsAndIsQueryable()
+    public async Task FullEventSequence_CreateOptionsTargetsPublish_ProjectsAndIsQueryable()
     {
-        // Arrange: Create -> add 2 options -> add 2 categories -> Publish (versions 1..5)
+        // Arrange: Create -> add 2 options -> add 2 targets -> Publish (versions 1..5)
         var builder = new EventHistoryBuilder()
             .Created("Arabic Colors", "Colors", "SingleSelect")
             .OptionAdded("red", "Arabic Red", "Red")
             .OptionAdded("blue", "Arabic Blue", "Blue")
-            .CategoriesAdded(10, 20)
+            .TargetsAdded(10, 20)
             .Published();
 
         // Act: project the whole history in one batch (one real transaction)
@@ -46,9 +46,9 @@ public class EventProjectionIntegrationTest(LocalDbFixture fixture, ITestOutputH
         Assert.Contains(response.Attribute.Options, o => o.Key == "red");
         Assert.Contains(response.Attribute.Options, o => o.Key == "blue");
 
-        Assert.Equal(2, response.Attribute.ApplicableCategoryIds.Count);
-        Assert.Contains(10, response.Attribute.ApplicableCategoryIds);
-        Assert.Contains(20, response.Attribute.ApplicableCategoryIds);
+        Assert.Equal(2, response.Attribute.ApplicableTargetIds.Count);
+        Assert.Contains(10, response.Attribute.ApplicableTargetIds);
+        Assert.Contains(20, response.Attribute.ApplicableTargetIds);
     }
 
     [Fact]
@@ -114,15 +114,15 @@ public class EventProjectionIntegrationTest(LocalDbFixture fixture, ITestOutputH
     }
 
     [Fact]
-    public async Task Delete_WithoutLoadingChildren_DatabaseCascadeRemovesOptionsAndCategories()
+    public async Task Delete_WithoutLoadingChildren_DatabaseCascadeRemovesOptionsAndTargets()
     {
-        // Arrange: an attribute carrying 3 options + 2 categories, materialised via events
+        // Arrange: an attribute carrying 3 options + 2 targets, materialised via events
         var builder = new EventHistoryBuilder()
             .Created("Arabic Colors", "Colors", "SingleSelect")
             .OptionAdded("red", "Arabic Red", "Red")
             .OptionAdded("green", "Arabic Green", "Green")
             .OptionAdded("blue", "Arabic Blue", "Blue")
-            .CategoriesAdded(10, 20);
+            .TargetsAdded(10, 20);
         Assert.True(await MediatorHelper.SendEvents(builder.Build()));
 
         // Act: delete ONLY the parent row, without loading its children. EF therefore cannot
@@ -140,11 +140,11 @@ public class EventProjectionIntegrationTest(LocalDbFixture fixture, ITestOutputH
 
         var optionCount = await DatabaseHelper.Query(db =>
             db.AttributeOptions.CountAsync(o => o.AttributeId == builder.AggregateId));
-        var categoryCount = await DatabaseHelper.Query(db =>
-            db.AttributeCategories.CountAsync(c => c.AttributeId == builder.AggregateId));
+        var targetCount = await DatabaseHelper.Query(db =>
+            db.AttributeTargets.CountAsync(t => t.AttributeId == builder.AggregateId));
 
         Assert.Equal(0, optionCount);
-        Assert.Equal(0, categoryCount);
+        Assert.Equal(0, targetCount);
     }
 
     [Fact]

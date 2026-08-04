@@ -12,12 +12,12 @@ namespace AnisShop.Attributes.Queries.Infrastructure.Persistence
         {
             modelBuilder.ApplyConfiguration(new AttributeConfigurations());
             modelBuilder.ApplyConfiguration(new AttributeOptionConfigurations());
-            modelBuilder.ApplyConfiguration(new AttributeCategoryConfigurations());
+            modelBuilder.ApplyConfiguration(new AttributeTargetConfigurations());
         }
 
         public DbSet<Domain.Attribute> Attributes { get; set; }
         public DbSet<AttributeOption> AttributeOptions { get; set; }
-        public DbSet<AttributeCategory> AttributeCategories { get; set; }
+        public DbSet<AttributeTarget> AttributeTargets { get; set; }
 
         public virtual Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken) => Database.IsSqlServer()
                 ? Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken)

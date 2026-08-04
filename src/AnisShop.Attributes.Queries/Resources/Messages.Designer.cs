@@ -79,11 +79,20 @@ namespace AnisShop.Attributes.Queries.Resources {
         }
 
         /// <summary>
-        ///   Looks up a localized string similar to Invalid category ID.
+        ///   Looks up a localized string similar to Invalid target ID.
         /// </summary>
-        public static string InvalidCategoryId {
+        public static string InvalidTargetId {
             get {
-                return ResourceManager.GetString("InvalidCategoryId", resourceCulture);
+                return ResourceManager.GetString("InvalidTargetId", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Invalid scope.
+        /// </summary>
+        public static string InvalidScope {
+            get {
+                return ResourceManager.GetString("InvalidScope", resourceCulture);
             }
         }
     }

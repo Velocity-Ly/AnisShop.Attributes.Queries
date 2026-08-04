@@ -87,16 +87,16 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
         }
 
         [Fact]
-        public async Task Handle_CategoryLifecycle_ProducesCorrectFinalState()
+        public async Task Handle_TargetLifecycle_ProducesCorrectFinalState()
         {
-            // Created(V1) → CategoriesAdded [10,20,30](V2) → CategoriesAdded [40,50](V3)
-            // → CategoriesRemoved [20,30](V4)
+            // Created(V1) → TargetsAdded [10,20,30](V2) → TargetsAdded [40,50](V3)
+            // → TargetsRemoved [20,30](V4)
             var builder = new EventHistoryBuilder();
             var history = builder
-                .Created("Arabic Categories", "Categories", "MultiSelect")
-                .CategoriesAdded(10, 20, 30)
-                .CategoriesAdded(40, 50)
-                .CategoriesRemoved(20, 30)
+                .Created("Arabic Targets", "Targets", "MultiSelect")
+                .TargetsAdded(10, 20, 30)
+                .TargetsAdded(40, 50)
+                .TargetsRemoved(20, 30)
                 .Build();
 
             // Act
@@ -107,18 +107,18 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
 
             var attribute = await AssertAttributeState.Exists(_factory, builder.AggregateId);
             Assert.Equal(4, attribute.Version);
-            await AssertAttributeState.HasCategories(_factory, builder.AggregateId, 10, 40, 50);
+            await AssertAttributeState.HasTargets(_factory, builder.AggregateId, 10, 40, 50);
         }
 
         [Fact]
         public async Task Handle_MixedBatch_AllEventTypesInSequence_ProducesCorrectFinalState()
         {
-            // Created(V1) → OptionAdded(V2) → CategoriesAdded(V3) → Published(V4) → MetadataChanged(V5)
+            // Created(V1) → OptionAdded(V2) → TargetsAdded(V3) → Published(V4) → MetadataChanged(V5)
             var builder = new EventHistoryBuilder();
             var history = builder
                 .Created("Arabic Original Name", "Original Name", "SingleSelect")
                 .OptionAdded("opt-1", "Arabic Option", "Option")
-                .CategoriesAdded(100, 200)
+                .TargetsAdded(100, 200)
                 .Published()
                 .MetadataChanged("Arabic Final Name", "Final Name", "Arabic Final Description", "Final Description")
                 .Build();
@@ -138,7 +138,7 @@ namespace AnisShop.Attributes.Queries.Tests.EventsHandler
             Assert.Equal("Final Description", attribute.EnglishDescription);
 
             await AssertAttributeState.HasOptions(_factory, builder.AggregateId, 1);
-            await AssertAttributeState.HasCategories(_factory, builder.AggregateId, 100, 200);
+            await AssertAttributeState.HasTargets(_factory, builder.AggregateId, 100, 200);
         }
     }
 }

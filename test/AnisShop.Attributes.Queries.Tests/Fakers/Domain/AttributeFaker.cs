@@ -5,7 +5,7 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
     public class AttributeFaker : NonPublicConstructorFaker<SourceDomain.Attribute>
     {
         private int _optionsCount;
-        private int[]? _categoryIds;
+        private int[]? _targetIds;
 
         public AttributeFaker()
         {
@@ -15,6 +15,7 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
             RuleFor(x => x.ArabicDescription, f => f.Lorem.Sentence());
             RuleFor(x => x.EnglishDescription, f => f.Lorem.Sentence());
             RuleFor(x => x.Type, f => f.PickRandom<SourceDomain.AttributeType>());
+            RuleFor(x => x.Scope, f => f.PickRandom<SourceDomain.AttributeScope>());
             RuleFor(x => x.Status, f => f.PickRandom<SourceDomain.AttributeStatus>());
             RuleFor(x => x.ArabicDeprecationWarning, f => f.Lorem.Sentence());
             RuleFor(x => x.EnglishDeprecationWarning, f => f.Lorem.Sentence());
@@ -35,6 +36,12 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
             return this;
         }
 
+        public AttributeFaker WithScope(SourceDomain.AttributeScope scope)
+        {
+            RuleFor(x => x.Scope, scope);
+            return this;
+        }
+
         public AttributeFaker WithOptions(int count)
         {
             _optionsCount = count;
@@ -47,9 +54,9 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
             return this;
         }
 
-        public AttributeFaker WithCategoryIds(params int[] categoryIds)
+        public AttributeFaker WithTargetIds(params int[] targetIds)
         {
-            _categoryIds = categoryIds;
+            _targetIds = targetIds;
             return this;
         }
 
@@ -66,14 +73,14 @@ namespace AnisShop.Attributes.Queries.Tests.Fakers.Domain
                 }
             }
 
-            if (_categoryIds != null)
+            if (_targetIds != null)
             {
-                foreach (var categoryId in _categoryIds)
+                foreach (var targetId in _targetIds)
                 {
-                    var category = new AttributeCategoryFaker(attribute.Id)
-                        .WithCategoryId(categoryId)
+                    var target = new AttributeTargetFaker(attribute.Id)
+                        .WithTargetId(targetId)
                         .Generate();
-                    attribute.ApplicableCategories.Add(category);
+                    attribute.ApplicableTargets.Add(target);
                 }
             }
 

@@ -61,7 +61,7 @@
   <data name="AttributeId" xml:space="preserve">
     <value>Attribute ID</value>
   </data>
-  <data name="CategoryId" xml:space="preserve">
-    <value>Category ID</value>
+  <data name="TargetId" xml:space="preserve">
+    <value>Target ID</value>
   </data>
 </root>

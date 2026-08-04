@@ -3,35 +3,35 @@ using Bogus;
 
 namespace AnisShop.Attributes.Queries.Tests.Fakers.Events
 {
-    public class AttributeApplicableCategoriesRemovedEventFaker
+    public class AttributeApplicableTargetsRemovedEventFaker
     {
         private readonly Faker _faker = new();
         private Guid _aggregateId = Guid.NewGuid();
         private int _version = 2;
-        private int[]? _categoryIds;
+        private int[]? _targetIds;
 
-        public AttributeApplicableCategoriesRemovedEventFaker ForAggregate(Guid aggregateId, int version)
+        public AttributeApplicableTargetsRemovedEventFaker ForAggregate(Guid aggregateId, int version)
         {
             _aggregateId = aggregateId;
             _version = version;
             return this;
         }
 
-        public AttributeApplicableCategoriesRemovedEventFaker WithCategoryIds(params int[] categoryIds)
+        public AttributeApplicableTargetsRemovedEventFaker WithTargetIds(params int[] targetIds)
         {
-            _categoryIds = categoryIds;
+            _targetIds = targetIds;
             return this;
         }
 
-        public AttributeApplicableCategoriesRemoved Generate() => new()
+        public AttributeApplicableTargetsRemoved Generate() => new()
         {
             AggregateId = _aggregateId,
             Version = _version,
             UserId = _faker.Random.Guid().ToString(),
             DateTime = DateTime.UtcNow,
-            Data = new AttributeApplicableCategoriesRemoved.EventData
+            Data = new AttributeApplicableTargetsRemoved.EventData
             {
-                ApplicableCategoryIds = _categoryIds ?? [_faker.Random.Int(1, 1000)]
+                ApplicableTargetIds = _targetIds ?? [_faker.Random.Int(1, 1000)]
             }
         };
     }
