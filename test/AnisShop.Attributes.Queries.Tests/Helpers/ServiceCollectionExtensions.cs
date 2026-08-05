@@ -20,11 +20,13 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
         }
 
         // Only one transport is ever registered (see Messaging:Transport), but the test host must
-        // boot whichever one appsettings happens to select, so both are stripped unconditionally.
+        // boot whichever one appsettings happens to select, so all three are stripped
+        // unconditionally.
         public static void RemoveEventListeners(this IServiceCollection services)
         {
             RemoveServiceBusServices(services);
             RemoveKafkaServices(services);
+            RemoveKafkaFlowServices(services);
         }
 
         // Strips the live Service Bus listener + client so the test host can boot without a
@@ -53,6 +55,21 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
             var hostedServices = services
                 .Where(d => d.ServiceType == typeof(IHostedService)
                     && d.ImplementationType == typeof(KafkaEventListener))
+                .ToList();
+
+            foreach (var descriptor in hostedServices)
+                services.Remove(descriptor);
+        }
+
+        // And for KafkaFlow, whose hosted service starts a real consumer against whatever brokers
+        // it was configured with. It is internal to the package, so it is identified by origin —
+        // KafkaFlow contributes no other hosted service.
+        public static void RemoveKafkaFlowServices(this IServiceCollection services)
+        {
+            var hostedServices = services
+                .Where(d => d.ServiceType == typeof(IHostedService)
+                    && d.ImplementationType?.Assembly.GetName().Name?
+                        .StartsWith("KafkaFlow", StringComparison.Ordinal) is true)
                 .ToList();
 
             foreach (var descriptor in hostedServices)

@@ -22,6 +22,12 @@
     <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
+    <!-- The third transport. KafkaFlow brings its own consumer, worker pool and offset manager,
+         so the application contributes one middleware and nothing else. -->
+    <PackageReference Include="KafkaFlow" Version="4.2.0" />
+    <PackageReference Include="KafkaFlow.Extensions.Hosting" Version="4.2.0" />
+    <PackageReference Include="KafkaFlow.LogHandler.Microsoft" Version="4.2.0" />
+    <PackageReference Include="KafkaFlow.Microsoft.DependencyInjection" Version="4.2.0" />
     <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
     <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
       <PrivateAssets>all</PrivateAssets>

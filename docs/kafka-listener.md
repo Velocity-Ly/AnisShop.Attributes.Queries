@@ -2,11 +2,14 @@
 
 > **Purpose**: Explain how the Kafka transport reproduces the Service Bus session listener's
 > guarantees (ordered per aggregate, massively parallel across aggregates) on a broker that has no
-> sessions. Both transports are in the tree; `Messaging:Transport` picks one.
+> sessions. Three transports are in the tree; `Messaging:Transport` picks one.
 >
 > The machinery lives in **`src/AnisShop.Kafka.Sessions`**, a standalone project consumed as a
 > package. Its README and GETTING-STARTED are the reference for using it anywhere else; this page is
 > about how *this* service uses it.
+>
+> A third transport reads the same topic through the KafkaFlow package instead of this one. See
+> [`kafkaflow-listener.md`](kafkaflow-listener.md) for what that buys and what it costs.
 
 ---
 
@@ -175,7 +178,7 @@ partitions can be added later, but adding them re-hashes keys.
 
 ```jsonc
 {
-  "Messaging": { "Transport": "Kafka" },       // or "ServiceBus" (default)
+  "Messaging": { "Transport": "Kafka" },       // or "ServiceBus" (default), or "KafkaFlow"
   "Kafka": {
     "BootstrapServers": "broker-1:9092,broker-2:9092",
     "Topic": "attributes-events",
@@ -209,7 +212,7 @@ via `ValidateOnStart`, so test hosts that strip the listener still boot against 
 | `Infrastructure/Kafka/KafkaEventDeserializer.cs` | Reads the `type` header; shares the event type map with the Service Bus reader |
 | `Infrastructure/Kafka/KafkaRegisterExtension.cs` | Processor + deserializer + hosted service |
 | `Infrastructure/Messaging/EventPayloadDeserializer.cs` | Shared with Service Bus: the event type map and JSON contract |
-| `Infrastructure/Messaging/EventTransportRegisterExtension.cs` | The `Messaging:Transport` switch |
+| `Infrastructure/Messaging/EventTransportRegisterExtension.cs` | The `Messaging:Transport` switch, now three-way |
 | `Infrastructure/ServiceBus/EventBatchProcessor.cs` | Service Bus's own version/gap rules — the Kafka path does the equivalent inline in `KafkaEventListener` |
 
 ### The whole consuming side
@@ -258,10 +261,13 @@ handing out sequential offsets in append order.
 | `OffsetWatermarkTests` | The cursor never passes an unfinished message and never rewinds |
 | `KafkaSessionProcessorOptionsTests` | `MaxConcurrentSessions >= MaxConcurrentPartitions`, and the required connection details |
 
-**Application suite** (`test/AnisShop.Attributes.Queries.Tests/Kafka`, 12) — only what is ours.
+**Application suite** (`test/AnisShop.Attributes.Queries.Tests/Kafka`, 8) — only what is ours.
 
 | Test | Proves |
 |---|---|
 | `KafkaEventDeserializerTests` | Both type-header spellings, and null for anything unreadable |
-| `EventTransportRegistrationTests` | Exactly one transport is registered, defaulting to Service Bus |
 | `KafkaProjectionWiringTests` | Our handler, driven through a real partition worker, lands interleaved sessions in the read model in publish order; an unknown event type blocks rather than skipping; a version gap blocks because the publisher's promise was violated |
+
+The transport switch itself is covered once for all three, in
+`test/AnisShop.Attributes.Queries.Tests/Messaging/EventTransportRegistrationTests` (6): exactly one
+listener is registered, and the default is still Service Bus.

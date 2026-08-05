@@ -495,3 +495,67 @@ so nobody assumes it does).
 stable over repeated runs. `Messaging:Transport` behaviour and the Service Bus path are unchanged.
 
 **Still unexercised**: no real broker, same as before.
+
+---
+
+## Task 12 — A third transport on KafkaFlow, to test the "did we reinvent this?" question
+**Status**: DONE
+
+Tasks 9–11 produced a 1030-line package that reproduces Service Bus session semantics on Kafka
+partitions. The obvious follow-up question was whether that already existed on NuGet. It largely
+does: **KafkaFlow** (Farfetch, 4.2.0, ~11M downloads) parallelises across message keys, orders within
+a key, and manages offsets for out-of-order completion — the same three problems.
+
+So rather than argue about it, this task added `Messaging:Transport = "KafkaFlow"` as a **third**
+listener reading the same topic, in the same envelope, into the same `IncomingEvents` projection.
+Nothing was removed; all three coexist and exactly one is registered.
+
+**What the application contributes** (`Infrastructure/KafkaFlowTransport/`, 260 lines): a topology
+registration, one `IMessageMiddleware` that pulls the batch out of the context, a projector that
+regroups it by key and projects, an envelope reader, and an options class. No hosted service, no
+consume loop, no worker, no buffer, no pause/resume, no rebalance handling, no offset arithmetic —
+`AnisShop.Kafka.Sessions`' entire 1030 lines have no counterpart here.
+
+**How KafkaFlow gets the guarantee**: `BytesSumDistributionStrategy` sums the message key's bytes
+modulo the worker count, so a key always lands on the same worker and a worker processes one message
+at a time. Ordering is therefore *partition-independent*, which is a genuinely nicer property than
+ours. `AddBatching` then hands each worker's collection over in one call — but that collection is a
+**hash bucket, not an aggregate**, so the projector regroups by key before projecting.
+
+**Two things it does exactly the way we did**: `EnableAutoCommit = true` with
+`EnableAutoOffsetStore = false`, and an offset watermark (`PartitionOffsets.TryDequeue`) that only
+advances past the oldest still-unfinished message. That is `OffsetWatermark.TryAdvance` with a
+different data structure.
+
+**Two things it does differently, and they are the decision**:
+
+| | `AnisShop.Kafka.Sessions` | KafkaFlow |
+|---|---|---|
+| Concurrency | every distinct key in the batch, up to 1000 | `WorkersCount` (32); unrelated aggregates that hash alike block each other |
+| Failure | blocks the partition forever, cursor never advances | logs one line and **completes the whole batch anyway** — the events are dropped |
+
+The second is not a setting, it is the model: `BatchConsumeMiddleware` catches, logs, and completes
+every message in its `finally`. Closing it costs something — `KafkaFlow.Retry` (an extra package at
+3.1.0 against a 4.2.0 core), or dropping batching (a round trip per event), or manual completion
+(which risks hanging a rebalance, since `WaitContextsCompletionAsync` waits on uncompleted contexts).
+None were applied, deliberately, so the comparison is of idiomatic KafkaFlow. `KafkaFlowEventProjector`
+logs `Critical` with the aggregate id, partition and every offset before throwing, so what gets
+dropped is at least named.
+
+**Also**: `EventTransportRegistrationTests` moved from `Tests/Kafka` to `Tests/Messaging`, since it
+now covers a three-way switch rather than a Kafka concern. The namespace is
+`Infrastructure.KafkaFlowTransport`, not `.KafkaFlow`, because the package owns that root namespace
+and a folder of the same name shadows it in every file.
+
+**Tests**: KafkaFlow **9** (`Tests/KafkaFlowTransport`) + **2** added to the registration suite. Far
+smaller than the Kafka suite by design — grouping, ordering, blocking, backpressure and cursor
+arithmetic are the package's to prove. No harness and no waiting either: the projector is called
+directly, because there is no loop of ours to run.
+
+**Verified**: package **21/21**, application unit **81/81**, integration **22/22** — 124 total.
+The Service Bus and Kafka paths are unchanged.
+
+**Still unexercised**: neither Kafka transport has run against a real broker. Until both do, under
+load, with a rebalance forced mid-flight, the comparison in
+[`docs/kafkaflow-listener.md`](kafkaflow-listener.md) is a reading of two codebases and not a
+measurement.

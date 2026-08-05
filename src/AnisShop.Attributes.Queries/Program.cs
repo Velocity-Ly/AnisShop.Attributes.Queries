@@ -27,7 +27,8 @@ builder.Services.AddDbContext<AttributesDbContext>(options =>
 
 builder.Services.AddHostedService<DatabaseRunner>();
 
-// Service Bus or Kafka, selected by "Messaging:Transport". Both project through IncomingEvents.
+// Service Bus, Kafka or KafkaFlow, selected by "Messaging:Transport". All three project through
+// IncomingEvents.
 builder.Services.AddEventListener(builder.Configuration);
 
 builder.Host.UseSerilog();
