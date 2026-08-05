@@ -1,3 +1,4 @@
+using AnisShop.Attributes.Queries.Infrastructure.Kafka;
 using AnisShop.Attributes.Queries.Infrastructure.Persistence;
 using AnisShop.Attributes.Queries.Infrastructure.ServiceBus;
 using AnisShop.Attributes.Queries.Tests.FakeServices;
@@ -14,8 +15,16 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
         public static void SetDefaultUnitTestsEnvironment(this IServiceCollection services)
         {
             RemoveDatabaseRunner(services);
-            RemoveServiceBusServices(services);
+            RemoveEventListeners(services);
             UseInMemoryDb(services);
+        }
+
+        // Only one transport is ever registered (see Messaging:Transport), but the test host must
+        // boot whichever one appsettings happens to select, so both are stripped unconditionally.
+        public static void RemoveEventListeners(this IServiceCollection services)
+        {
+            RemoveServiceBusServices(services);
+            RemoveKafkaServices(services);
         }
 
         // Strips the live Service Bus listener + client so the test host can boot without a
@@ -30,6 +39,20 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
             var hostedServices = services
                 .Where(d => d.ServiceType == typeof(IHostedService)
                     && d.ImplementationType == typeof(ServiceBusEventListener))
+                .ToList();
+
+            foreach (var descriptor in hostedServices)
+                services.Remove(descriptor);
+        }
+
+        // Same idea for Kafka: the listener starts the session processor in StartAsync, which
+        // resolves options that would trip on the empty appsettings placeholders. The deserializer
+        // and the processor registration stay, so a test can still drive the handler directly.
+        public static void RemoveKafkaServices(this IServiceCollection services)
+        {
+            var hostedServices = services
+                .Where(d => d.ServiceType == typeof(IHostedService)
+                    && d.ImplementationType == typeof(KafkaEventListener))
                 .ToList();
 
             foreach (var descriptor in hostedServices)

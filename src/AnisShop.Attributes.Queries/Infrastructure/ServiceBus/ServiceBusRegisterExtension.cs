@@ -1,4 +1,5 @@
 using Azure.Messaging.ServiceBus;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AnisShop.Attributes.Queries.Infrastructure.ServiceBus;
 
@@ -30,8 +31,8 @@ public static class ServiceBusRegisterExtension
 
     private static void AddEventProcessingServices(this IServiceCollection services)
     {
+        services.TryAddSingleton<EventBatchProcessor>();
         services.AddSingleton<IEventDeserializer, EventDeserializer>();
-        services.AddSingleton<EventBatchProcessor>();
         services.AddHostedService<ServiceBusEventListener>();
     }
 }

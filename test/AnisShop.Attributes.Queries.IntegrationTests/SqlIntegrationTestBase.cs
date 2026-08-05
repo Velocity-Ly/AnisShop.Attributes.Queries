@@ -56,7 +56,7 @@ public abstract class SqlIntegrationTestBase : IAsyncLifetime
     private static void ConfigureSqlServerEnvironment(IServiceCollection services, string connectionString)
     {
         RemoveDatabaseRunner(services);
-        services.RemoveServiceBusServices();
+        services.RemoveEventListeners();
         UseSqlServer(services, connectionString);
     }
 

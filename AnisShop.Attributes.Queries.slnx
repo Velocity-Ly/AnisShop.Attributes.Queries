@@ -2,9 +2,11 @@
   <Folder Name="/docs/" />
   <Folder Name="/src/">
     <Project Path="src/AnisShop.Attributes.Queries/AnisShop.Attributes.Queries.csproj" />
+    <Project Path="src/AnisShop.Kafka.Sessions/AnisShop.Kafka.Sessions.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/AnisShop.Attributes.Queries.Tests/AnisShop.Attributes.Queries.Tests.csproj" />
     <Project Path="test/AnisShop.Attributes.Queries.IntegrationTests/AnisShop.Attributes.Queries.IntegrationTests.csproj" />
+    <Project Path="test/AnisShop.Kafka.Sessions.Tests/AnisShop.Kafka.Sessions.Tests.csproj" />
   </Folder>
 </Solution>

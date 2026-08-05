@@ -264,3 +264,234 @@ environment) fixed it. No `src` changes — all fixes are test-only.
 
 **Verified**: integration suite **22/22** green (5 new + 17 previously-red query tests now boot);
 unit suite still **58/58** green (the `ServiceCollectionExtensions` change is non-breaking).
+
+---
+
+## Task 9 — Kafka Transport (session-equivalent ordering on partitions)
+**Status**: DONE
+
+A second listener that consumes the same events from Kafka with the same guarantees as the Service
+Bus one — **ordered per stream, parallel across streams** — plus Kafka's own scale-out across
+processes. Both transports ship; `Messaging:Transport` (`ServiceBus` | `Kafka`, default
+`ServiceBus`) selects exactly one at startup. Full design rationale in
+[`kafka-listener.md`](kafka-listener.md).
+
+**The core problem**: Service Bus sessions give an exclusive lock on *one stream*
+(`SessionId == AggregateId`), so ordering is the broker's job. A Kafka partition is a lock on a
+*bundle of interleaved streams*, so ordering has to be reconstructed in the consumer.
+
+**The design** (three moves):
+1. The producer keys every message by `AggregateId`, so a stream never spans two partitions and its
+   events sit in the partition in version order.
+2. One `PartitionStreamProcessor` owns one partition. The consume loop only routes; it never
+   projects. Partitions therefore drain concurrently and no partition is touched by two threads.
+3. Each worker drains a batch and **regroups it by `AggregateId`** — turning one interleaved bundle
+   back into N session-shaped slices — then projects every slice concurrently (bounded by the
+   shared `MaxConcurrentStreams` gate, default 1000 = `MaxConcurrentSessions`) while each slice is
+   applied strictly in version order by the unchanged `IncomingEventsHandler`.
+
+**Key decisions**:
+- **Cursor rule** (`OffsetWatermark`): a partition has one cursor but we finish streams out of
+  order, so it may only move to just below the *oldest unfinished* message. Offsets above it are
+  re-read and re-projected idempotently — the same at-least-once contract redelivery already gave
+  the Service Bus path.
+- **Offset storage**: `EnableAutoCommit = true` + `EnableAutoOffsetStore = false`. Workers hand
+  positions back through a queue; only the consume thread calls `StoreOffset`, because librdkafka's
+  consumer is not thread-safe. A commit can never run ahead of the read model.
+- **Nothing is ever discarded.** No dead letter topic, no skip path: a message that cannot be
+  processed **blocks its partition** until it can be, and the cursor never moves past it. Blocked
+  means *stopped* — the worker pulls nothing new, the buffer fills, and the listener pauses that
+  partition on the broker, so even a good message sitting behind a blockage is not consumed. Streams
+  already inside the in-flight batch still finish in parallel; the blocking is applied between
+  batches by refusing new work, never by serialising the fan-out. Accepted cost: one bad message
+  stops every stream on that partition and lag grows until someone intervenes. Alert on consumer lag
+  and on the `Critical` log line.
+- **Three holding sets, split by what would fix them** — which decides whether reading more helps:
+  `_heldEvents` (handler returned `false`; the version filler is further up the partition, so the
+  worker **keeps draining** and carries them into the next batch — refusing to read would deadlock
+  it, and it is bounded at one batch's worth); `_failedEvents` (projection threw or timed out; only
+  time fixes it); `_undecodable` (unknown type/malformed JSON; only a deploy fixes it). The last two
+  stop the partition.
+- **Undecodable payloads are retried every cycle, not parked.** The usual cause is a consumer that
+  predates the event type, so the deploy that adds it drains the backlog by itself, in order, with
+  nothing replayed by hand. That is the argument for blocking over dead-lettering: the bytes are
+  still in the partition, so the fix is a deploy rather than a recovery job.
+- **Escalating backoff**: `RetryBackoffMilliseconds` doubles per consecutive blocked cycle up to
+  `MaxRetryBackoffMilliseconds` (30s), so a brief fault recovers in milliseconds and a long outage
+  settles instead of hot-looping. First blocked cycle logs `Critical` with partition + offset,
+  subsequent ones `Warning`, recovery `Information`.
+- **Rebalancing**: cooperative-sticky. Revoked partitions drain their workers (bounded wait) then
+  commit; lost partitions drop everything uncommitted.
+
+**Refactor** (shared below the transport, so the two listeners cannot drift):
+- `Infrastructure/ServiceBus/EventBatchProcessor.cs` → `Infrastructure/Messaging/` (namespace
+  change only, plus a third `Held` list on `EventBatchResult` for the events sitting behind a gap —
+  Service Bus ignores it and relies on redelivery; Kafka carries them over).
+- New `Infrastructure/Messaging/EventPayloadDeserializer.cs` — the 15-entry event type map and the
+  camelCase JSON contract, now in one place. `ServiceBus/EventDeserializer` and
+  `Kafka/KafkaEventDeserializer` derive from it and only know how to pull the type name and body out
+  of their own envelope (`Subject` vs a `type` header). `EventDeserializer`'s public shape is
+  unchanged, so `EventDeserializerTests` compiles verbatim.
+- New `Infrastructure/Messaging/EventTransportRegisterExtension.cs` — the `Messaging:Transport`
+  switch, called from `Program.cs` in place of `AddServiceBusListener`.
+
+**New src files** (`Infrastructure/Kafka/`): `KafkaEventListener` (single consumer: poll, route,
+pause/resume, store positions, rebalance), `PartitionStreamProcessor` (batch → regroup → fan out →
+hold/block → cursor), `OffsetWatermark`, `KafkaListenerOptions`, `KafkaEventDeserializer` +
+interface, `KafkaRegisterExtension`. Package: `Confluent.Kafka` 2.15.0.
+
+**Test-infrastructure changes**:
+- `Tests/Helpers/ServiceCollectionExtensions.cs` — added `RemoveKafkaServices` and a
+  `RemoveEventListeners` that strips both transports, since the test host must boot whichever one
+  `appsettings.json` selects. `RemoveServiceBusServices` kept as-is.
+- `SqlIntegrationTestBase.cs` — now calls `RemoveEventListeners()`.
+- New `Tests/Helpers/KafkaPartitionLog.cs` (fakes a partition: sequential offsets in append order,
+  round-robin interleaving) and `Tests/Helpers/PartitionProcessorHarness.cs` (drives the real
+  `PartitionStreamProcessor` with no broker), plus `FakeServices/FakeKafkaEventDeserializer.cs`
+  (delegates to the real deserializer unless a stream is marked undecodable — lets a test simulate
+  the consumer deploy that teaches it a new event type).
+
+**New tests** (`Tests/Kafka/`, 24 total, all broker-free): `PartitionStreamProcessorTests` (9 —
+interleaved streams project in per-stream order; 50 streams in one batch; a gap-held stream does not
+block its batch-mates *and* the cursor stops exactly at it; the gap resolves when the filler arrives;
+holding is bounded and turns into buffer backpressure; an undecodable payload and a throwing
+projection each stop the partition so nothing behind them is consumed; an undecodable payload
+projects itself once the consumer can decode it; redelivery is a no-op), `OffsetWatermarkTests` (6),
+`KafkaEventDeserializerTests` (5), `EventTransportRegistrationTests` (4). Honoured the
+no-hardcoded-Arabic rule throughout (Latin placeholders: `"Arabic First V3"`, `"Arabic Option"`, …).
+
+**Verified**: unit suite **82/82** green (was 58, +24), stable over consecutive runs since the
+processor tests are timing-sensitive; integration suite **22/22** green. No behaviour change to the
+Service Bus path — it keeps its dead-letter sub-queue and re-drive processor, which is a deliberate
+asymmetry: a blocked Service Bus session stops one stream, a blocked Kafka partition stops every
+stream on it.
+
+> **Superseded by Task 10.** The file layout above (everything under
+> `src/AnisShop.Attributes.Queries/Infrastructure/Kafka/` and `Infrastructure/Messaging/`) no longer
+> matches the tree. The behaviour is unchanged; only where it lives has moved.
+
+---
+
+## Task 10 — Extract the Kafka machinery into a package
+**Status**: DONE
+
+Kafka needs roughly ten times the code Service Bus does for the same guarantees, and all of it was
+sitting in the query project alongside the read model. None of it is about attributes, so it moved
+into **`src/AnisShop.Kafka.OrderedStreams`** — a standalone project with its own README, version and
+test suite, referenced the way a NuGet package would be. It depends on nothing from this application.
+
+**The seam**: the package is generic over an opaque `TEvent` and asks the host for exactly two
+things.
+
+| Contract | The host answers | Signals |
+|---|---|---|
+| `IStreamMessageDecoder<TEvent>` | where does this record sit — stream id and version? | `null` = unreadable → block the partition |
+| `IStreamProjector<TEvent>` | apply one stream's contiguous run | `true` = applied · `false` = version gap, hold · throws = failed, block |
+
+Those three signals are the whole failure policy from Task 9, restated as a contract. The package
+never sees an `EventBase`, a `DbContext` or a mediator; the projector is resolved from a fresh DI
+scope per slice, so a scoped `DbContext` is never shared across concurrent streams.
+
+**Consuming side, in full** — `Infrastructure/Kafka/` is now three small files:
+`KafkaEventDecoder` (reads the `type` header, reports `(AggregateId, Version)`), `EventStreamProjector`
+(forwards to `IncomingEvents`), and a `KafkaRegisterExtension` that is a single call:
+`services.AddKafkaOrderedStreams<EventBase, KafkaEventDecoder, EventStreamProjector>(configuration)`.
+Deleted from the application: `KafkaEventListener`, `PartitionStreamProcessor`, `OffsetWatermark`,
+`KafkaListenerOptions`, `IKafkaEventDeserializer`.
+
+**Deliberate duplication**: `EventBatchProcessor` moved back to `Infrastructure/ServiceBus/` and the
+package carries its own `StreamBatchOrdering`. A package cannot reach into application internals, and
+the Service Bus path must not depend on a Kafka package — so ~30 lines of sort/dedupe/contiguous
+exist twice. `Infrastructure/Messaging/` still holds what is genuinely shared: the event type map
+(`EventPayloadDeserializer`) and the transport switch. `MessagingRegisterExtension` deleted (it only
+wrapped a single `TryAddSingleton` and was no longer shared).
+
+**Test split by ownership**:
+- New `test/AnisShop.Kafka.OrderedStreams.Tests` (**22**) — the ordering, blocking, backpressure and
+  cursor behaviours, against a fake decoder and a fake projector. No host, no EF, no application.
+  Two tests are new: `Process_StreamsInOneBatch_ProjectConcurrently` (five slices block until all
+  five are in flight, so a serialised fan-out could never finish — the scalability claim, proved
+  without a timing guess) and `Process_ProjectionFailure_DrainsOnceTheProjectorRecovers` (blocking
+  unblocks itself with the backlog intact).
+- `Tests/Kafka/` (**11**) — only what is ours: `KafkaEventDecoderTests` (5),
+  `EventTransportRegistrationTests` (4, one new: Kafka registers both adapters with the projector
+  scoped), `KafkaProjectionWiringTests` (2, new: our adapters driven through a real partition worker
+  land events in the read model in version order, and a version gap holds the cursor rather than
+  failing). Deleted app-side: `PartitionStreamProcessorTests`, `OffsetWatermarkTests`,
+  `FakeKafkaEventDeserializer`.
+
+**Verified**: package suite **22/22**, application unit suite **69/69**, integration suite **22/22**
+— 113 total, up from 104. `Messaging:Transport` behaviour, the appsettings shape and the runtime
+behaviour of both transports are unchanged.
+
+**Still unexercised**: the Kafka path has never run against a real broker (no Docker on this
+machine), so consumer config, rebalance callbacks and pause/resume remain untested end to end. That
+is unchanged by this task — the code moved, it did not become more proven.
+
+> **Superseded by Task 11.** The package was renamed and its contract replaced: no decoder, no
+> projector interface, no versions. Read Task 11 for what actually ships.
+
+---
+
+## Task 11 — Make the package a session listener, not an event projector
+**Status**: DONE
+
+Task 10 extracted the right *code* behind the wrong *boundary*. The package sorted each stream's
+events by `Version`, dropped replays and refused to deliver anything past a gap — but a Service Bus
+session receiver does none of that. It hands you what the sender sent, in the order the sender sent
+it, and what the payload means is the consumer's business. The transport was carrying this service's
+domain rules.
+
+**Renamed** `AnisShop.Kafka.OrderedStreams` → **`AnisShop.Kafka.Sessions`**, and the vocabulary with
+it: events → messages, streams → sessions, projector → handler.
+
+**Deleted from the package**: `StreamBatchOrdering` (sort, dedupe, +1 contiguity), the `Version`
+coordinate, `IStreamMessageDecoder` / `IStreamProjector` and the `TEvent` generic, the held-events
+carry-over, and the `false` return value. The package is now non-generic and has no interfaces at
+all.
+
+**The contract is now Service Bus's contract.** The **message key is the session id** — Kafka's key
+is `SessionId` and `PartitionKey` collapsed into one logical, unbounded, sender-set field, so the
+premise is identical to `SessionId == AggregateId`. Delivery is raw
+`ConsumeResult<string, byte[]>` records grouped by key, the counterpart of a raw
+`ServiceBusReceivedMessage`. Returning means done; throwing means the partition blocks and the same
+messages come back. That is the whole failure model.
+
+**The API is `ServiceBusSessionProcessor`**: `ProcessSessionMessagesAsync` and `ProcessErrorAsync`
+events, `StartProcessingAsync` / `StopProcessingAsync`, one handler only, and the host owns the
+`IHostedService`. The one improvement: the handler is called with **a run of one session's messages**
+(up to `MaxMessagesPerSession`) instead of a single message, back to back and never concurrently
+with itself.
+
+**Knobs**, with the constraint validated at startup:
+
+| Setting | Service Bus equivalent |
+|---|---|
+| `MaxConcurrentPartitions` (32) | — (Kafka-only; caps in-flight work and memory) |
+| `MaxConcurrentSessions` (1000) | `MaxConcurrentSessions` — must be **≥** `MaxConcurrentPartitions` |
+| `MaxMessagesPerSession` (100) | `MaxMessagesPerSession` |
+
+**Also closed** two gaps flagged in Task 10: a `configureConsumer` hook on the constructor for SASL,
+SSL and timeouts (the offset settings the guarantee rests on are re-applied afterwards and cannot be
+overridden), and multi-topic support by constructing a processor directly with its own options —
+`AddKafkaSessionProcessor` still binds one unnamed options instance and is documented as such.
+
+**The version logic came home.** `Infrastructure/Kafka/KafkaEventListener.cs` is now the same shape
+as `ServiceBusEventListener`: subscribe, start, stop. Its handler deserializes, sends `IncomingEvents`
+and throws in exactly two cases — an unknown event type (skipping would leave an undetectable hole in
+the read model) and `IncomingEventsHandler` returning `false`. That second case is now treated as a
+**broken publisher promise** rather than a routine hold: under session ordering, version N-1 was
+always handled before N arrived, so a gap means the ordering guarantee was violated and must be
+loud. `EventStreamProjector` and `KafkaEventDecoder` deleted; `KafkaEventDeserializer` restored.
+
+**Tests**: package **21** (`test/AnisShop.Kafka.Sessions.Tests`), application Kafka **12**. Three are
+new behaviours the old design could not express: `Handle_OneSession_NeverOverlapsWithItself` (the
+half of the session guarantee that says parallelism is *between* sessions only),
+`Handle_SessionLargerThanMaxMessagesPerSession_DeliversInSeveralOrderedCalls`, and
+`Handle_RedeliveredMessages_AreHandedOverAgain` (pinning that the package does **not** deduplicate,
+so nobody assumes it does).
+
+**Verified**: package **21/21**, application unit **70/70**, integration **22/22** — 113 total,
+stable over repeated runs. `Messaging:Transport` behaviour and the Service Bus path are unchanged.
+
+**Still unexercised**: no real broker, same as before.

@@ -1,6 +1,6 @@
 using AnisShop.Attributes.Queries.GrpcServices;
+using AnisShop.Attributes.Queries.Infrastructure.Messaging;
 using AnisShop.Attributes.Queries.Infrastructure.Persistence;
-using AnisShop.Attributes.Queries.Infrastructure.ServiceBus;
 using AnisShop.Attributes.Queries.Interceptors;
 using AnisShop.Attributes.Queries.Setup;
 using FluentValidation;
@@ -27,7 +27,8 @@ builder.Services.AddDbContext<AttributesDbContext>(options =>
 
 builder.Services.AddHostedService<DatabaseRunner>();
 
-builder.Services.AddServiceBusListener(builder.Configuration);
+// Service Bus or Kafka, selected by "Messaging:Transport". Both project through IncomingEvents.
+builder.Services.AddEventListener(builder.Configuration);
 
 builder.Host.UseSerilog();
 

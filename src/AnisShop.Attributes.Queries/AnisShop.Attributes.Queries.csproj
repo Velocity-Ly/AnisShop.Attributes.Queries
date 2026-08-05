@@ -12,7 +12,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Consumed as a package would be: it delivers one aggregate's messages in publish order,
+         and owns none of what those messages mean. -->
+    <ProjectReference Include="..\AnisShop.Kafka.Sessions\AnisShop.Kafka.Sessions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.20.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
     <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
