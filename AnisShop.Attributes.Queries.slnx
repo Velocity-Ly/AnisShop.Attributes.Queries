@@ -13,4 +13,7 @@
       <Build Solution="Debug|*" Project="false" />
     </Project>
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/AnisShop.Attributes.Sample.Publisher/AnisShop.Attributes.Sample.Publisher.csproj" />
+  </Folder>
 </Solution>
