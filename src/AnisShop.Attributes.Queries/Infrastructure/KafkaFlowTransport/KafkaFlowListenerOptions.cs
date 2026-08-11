@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using KafkaFlow.Configuration;
 
 namespace AnisShop.Attributes.Queries.Infrastructure.KafkaFlowTransport;
 
@@ -10,7 +11,7 @@ namespace AnisShop.Attributes.Queries.Infrastructure.KafkaFlowTransport;
 // eagerly instead of following the lazy ValidateDataAnnotations pattern the other two listeners
 // use: the empty appsettings placeholders never reach it, because nothing registers this transport
 // unless Messaging:Transport asks for it by name.
-public class KafkaFlowListenerOptions
+public class KafkaFlowListenerOptions : IValidatableObject
 {
     public const string SectionName = "KafkaFlow";
 
@@ -43,6 +44,30 @@ public class KafkaFlowListenerOptions
     [Range(1, 60_000)]
     public int BatchTimeoutMilliseconds { get; set; } = 25;
 
+    // Off by default: on a dedicated event topic a message with no recognised type header is a
+    // contract violation and the projector is right to fail loudly on it. Turn this on only when
+    // the topic is deliberately shared with other producers (a smoke-test / health-probe topic),
+    // where such messages are simply foreign traffic to be skipped. A message that DOES carry a
+    // known type but fails to deserialize stays fatal either way — that is still our data going
+    // wrong, not someone else's passing through.
+    public bool IgnoreUnrecognizedMessages { get; set; }
+
+    // Plaintext keeps the default behaviour for anyone already pointing this at an unsecured broker.
+    // Anything else and the credentials below become mandatory.
+    public SecurityProtocol SecurityProtocol { get; set; } = SecurityProtocol.Plaintext;
+
+    public SaslMechanism SaslMechanism { get; set; } = SaslMechanism.ScramSha512;
+
+    // Deliberately absent from appsettings.json. Supply them per environment, either as
+    // KafkaFlow__SaslUsername / KafkaFlow__SaslPassword environment variables or through user
+    // secrets, so a credential can never arrive by way of a committed file.
+    public string? SaslUsername { get; set; }
+
+    public string? SaslPassword { get; set; }
+
+    public bool UsesSasl =>
+        SecurityProtocol is SecurityProtocol.SaslPlaintext or SecurityProtocol.SaslSsl;
+
     public static KafkaFlowListenerOptions Read(IConfiguration configuration)
     {
         var options = configuration.GetSection(SectionName).Get<KafkaFlowListenerOptions>() ?? new();
@@ -50,5 +75,27 @@ public class KafkaFlowListenerOptions
         Validator.ValidateObject(options, new ValidationContext(options), validateAllProperties: true);
 
         return options;
+    }
+
+    // A missing credential would otherwise surface as a broker transport failure several seconds
+    // into startup, which reads like a network fault rather than a configuration one.
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (!UsesSasl)
+            yield break;
+
+        if (string.IsNullOrWhiteSpace(SaslUsername))
+        {
+            yield return new ValidationResult(
+                $"{nameof(SaslUsername)} is required when {nameof(SecurityProtocol)} is {SecurityProtocol}.",
+                [nameof(SaslUsername)]);
+        }
+
+        if (string.IsNullOrWhiteSpace(SaslPassword))
+        {
+            yield return new ValidationResult(
+                $"{nameof(SaslPassword)} is required when {nameof(SecurityProtocol)} is {SecurityProtocol}.",
+                [nameof(SaslPassword)]);
+        }
     }
 }

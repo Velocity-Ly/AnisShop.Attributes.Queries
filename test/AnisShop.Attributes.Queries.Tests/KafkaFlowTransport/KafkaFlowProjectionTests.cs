@@ -136,7 +136,60 @@ namespace AnisShop.Attributes.Queries.Tests.KafkaFlowTransport
             await AssertAttributeState.DoesNotExist(_factory, stuck.AggregateId);
         }
 
-        private KafkaFlowEventProjector Projector() =>
-            ActivatorUtilities.CreateInstance<KafkaFlowEventProjector>(_factory.Services);
+        [Fact]
+        public async Task Project_ForeignMessageWithSkipEnabled_IsIgnoredAndRealEventsStillProject()
+        {
+            // Arrange: a shared topic. A health-probe message with no type header lands in the same
+            // worker dispatch as a healthy aggregate. With the skip switch on, the probe is foreign
+            // traffic to ignore, and the real aggregate must still reach the read model.
+            var real = new EventHistoryBuilder();
+            var events = real.Created("Arabic Shared", "Shared", "SingleSelect")
+                .Published()
+                .Build();
+
+            var log = new KafkaPartitionLog();
+            var batch = KafkaFlowWorkerBatch.Of([
+                log.AppendForeign("probe", "probe 2026-08-11T11:30:45+00:00"),
+                .. log.Append(events),
+            ]);
+
+            // Act
+            await Projector(new KafkaFlowListenerOptions { IgnoreUnrecognizedMessages = true })
+                .ProjectAsync(batch, CancellationToken.None);
+
+            // Assert: the probe was skipped (no throw) and the real aggregate projected as usual.
+            await AssertAttributeState.HasVersion(_factory, real.AggregateId, 2);
+            await AssertAttributeState.HasStatus(_factory, real.AggregateId, AttributeStatus.Published);
+        }
+
+        [Fact]
+        public async Task Project_ForeignMessageWithSkipDisabled_ThrowsLikeAnyUnreadableMessage()
+        {
+            // Arrange: the same foreign message, but the switch is off — the production default. A
+            // message the projector cannot read is the contract violation it would be on a dedicated
+            // topic, so it fails and abandons the rest of the batch, headerless or not.
+            var behind = new EventHistoryBuilder();
+
+            var log = new KafkaPartitionLog();
+            var batch = KafkaFlowWorkerBatch.Of([
+                log.AppendForeign("probe", "probe 2026-08-11T11:30:45+00:00"),
+                .. log.Append(behind.Created("Arabic Behind", "Behind", "SingleSelect").Build()),
+            ]);
+
+            // Act
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => Projector().ProjectAsync(batch, CancellationToken.None));
+
+            // Assert
+            Assert.Contains("cannot be deserialized", exception.Message);
+            await AssertAttributeState.DoesNotExist(_factory, behind.AggregateId);
+        }
+
+        // appsettings selects Service Bus, so AddKafkaFlowListener never runs and its options are not
+        // in the container. Pass them explicitly instead — defaulting to the strict production
+        // behaviour so every existing test keeps exercising it.
+        private KafkaFlowEventProjector Projector(KafkaFlowListenerOptions? options = null) =>
+            ActivatorUtilities.CreateInstance<KafkaFlowEventProjector>(
+                _factory.Services, options ?? new KafkaFlowListenerOptions());
     }
 }

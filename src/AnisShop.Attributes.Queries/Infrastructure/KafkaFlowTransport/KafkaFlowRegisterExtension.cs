@@ -13,6 +13,8 @@ public static class KafkaFlowRegisterExtension
     {
         var options = KafkaFlowListenerOptions.Read(configuration);
 
+        // The projector reads IgnoreUnrecognizedMessages off this same instance.
+        services.AddSingleton(options);
         services.AddSingleton<IKafkaFlowEventDeserializer, KafkaFlowEventDeserializer>();
         services.AddSingleton<KafkaFlowEventProjector>();
 
@@ -20,6 +22,19 @@ public static class KafkaFlowRegisterExtension
             .UseMicrosoftLog()
             .AddCluster(cluster => cluster
                 .WithBrokers(options.BootstrapServers.Split(',', StringSplitOptions.TrimEntries))
+                // Left untouched on Plaintext so an unsecured broker still needs no configuration at
+                // all. librdkafka reads the whole security posture from these four values.
+                .WithSecurityInformation(security =>
+                {
+                    security.SecurityProtocol = options.SecurityProtocol;
+
+                    if (!options.UsesSasl)
+                        return;
+
+                    security.SaslMechanism = options.SaslMechanism;
+                    security.SaslUsername = options.SaslUsername;
+                    security.SaslPassword = options.SaslPassword;
+                })
                 .AddConsumer(consumer => consumer
                     .Topic(options.Topic)
                     .WithGroupId(options.ConsumerGroup)

@@ -58,11 +58,19 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
         public ConsumeResult<string, byte[]> AppendUnknownType(Guid aggregateId) =>
             Build(aggregateId.ToString(), "NotAnEventTypeWeKnow", Encoding.UTF8.GetBytes("{}"));
 
+        // Another producer sharing the topic — a health probe or smoke test. It has a key and a body
+        // but no event-type header at all, so nothing marks it as one of ours.
+        public ConsumeResult<string, byte[]> AppendForeign(string key, string body) =>
+            BuildRecord(key, new Headers(), Encoding.UTF8.GetBytes(body));
+
         private ConsumeResult<string, byte[]> Build(string key, string typeName, byte[] body)
         {
             var headers = new Headers { { KafkaEventDeserializer.TypeHeader, Encoding.UTF8.GetBytes(typeName) } };
+            return BuildRecord(key, headers, body);
+        }
 
-            return new ConsumeResult<string, byte[]>
+        private ConsumeResult<string, byte[]> BuildRecord(string key, Headers headers, byte[] body) =>
+            new()
             {
                 Topic = _topic,
                 Partition = new Partition(_partition),
@@ -74,6 +82,5 @@ namespace AnisShop.Attributes.Queries.Tests.Helpers
                     Headers = headers,
                 },
             };
-        }
     }
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using AnisShop.Attributes.Queries.Events;
 using AnisShop.Attributes.Queries.Features.EventsHandler;
+using AnisShop.Attributes.Queries.Infrastructure.Kafka;
 using KafkaFlow;
 using Mediator;
 
@@ -16,15 +17,18 @@ public class KafkaFlowEventProjector
 {
     private readonly IKafkaFlowEventDeserializer _deserializer;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly bool _ignoreUnrecognizedMessages;
     private readonly ILogger<KafkaFlowEventProjector> _logger;
 
     public KafkaFlowEventProjector(
         IKafkaFlowEventDeserializer deserializer,
         IServiceScopeFactory scopeFactory,
+        KafkaFlowListenerOptions options,
         ILogger<KafkaFlowEventProjector> logger)
     {
         _deserializer = deserializer;
         _scopeFactory = scopeFactory;
+        _ignoreUnrecognizedMessages = options.IgnoreUnrecognizedMessages;
         _logger = logger;
     }
 
@@ -50,6 +54,21 @@ public class KafkaFlowEventProjector
             var @event = _deserializer.Deserialize(message);
             if (@event is null)
             {
+                // A message with no recognised type header was never one of ours. On a shared topic
+                // that is foreign traffic (a health probe, a smoke test) and skipping it is correct;
+                // failing would drop this worker's whole batch for a message we don't even own. A
+                // message that DOES carry a type header but still won't deserialize is our data going
+                // wrong, so it stays fatal regardless of this switch.
+                if (_ignoreUnrecognizedMessages && !HasTypeHeader(message))
+                {
+                    _logger.LogDebug(
+                        "Skipping foreign message on {Topic}/{Partition} at offset {Offset}: no event type header.",
+                        message.ConsumerContext.Topic,
+                        message.ConsumerContext.Partition,
+                        message.ConsumerContext.Offset);
+                    continue;
+                }
+
                 throw Fail(
                     aggregateId, messages,
                     $"the message at offset {message.ConsumerContext.Offset} cannot be deserialized");
@@ -57,6 +76,10 @@ public class KafkaFlowEventProjector
 
             events.Add(@event);
         }
+
+        // Everything in this group was foreign and skipped — there is nothing to project.
+        if (events.Count == 0)
+            return;
 
         using var scope = _scopeFactory.CreateScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
@@ -99,4 +122,10 @@ public class KafkaFlowEventProjector
     // other keyless message, so grouping them together keeps them one ordered run.
     private static string AggregateIdOf(IMessageContext message) =>
         message.Message.Key is byte[] key ? Encoding.UTF8.GetString(key) : string.Empty;
+
+    // The publisher stamps every event with a type header (either spelling). Its absence is what
+    // distinguishes another producer's message from one of ours that merely failed to parse.
+    private static bool HasTypeHeader(IMessageContext message) =>
+        message.Headers[KafkaEventDeserializer.TypeHeader] is not null
+        || message.Headers[KafkaEventDeserializer.LegacyTypeHeader] is not null;
 }
