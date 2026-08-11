@@ -1,5 +1,7 @@
 # KafkaFlow Listener — the same job, bought off the shelf
 
+> **New to KafkaFlow here?** Start at [kafkaflow.md](kafkaflow.md) — the single entry point.
+>
 > **Purpose**: A third value of `Messaging:Transport` that reads the same topic, in the same
 > envelope, into the same `IncomingEvents` projection — but hands the consumer, the worker pool, the
 > buffering and the offset management to [KafkaFlow](https://github.com/Farfetch/kafkaflow) instead
@@ -211,13 +213,17 @@ and options live there rather than in a package. The 1030-line column is the one
 {
   "Messaging": { "Transport": "KafkaFlow" },
   "KafkaFlow": {
-    "BootstrapServers": "broker-1:9092,broker-2:9092",
-    "Topic": "attributes-events",
-    "ConsumerGroup": "anishop-attributes-queries",
+    "BootstrapServers": "broker-1:9092,broker-2:9092,broker-3:9092",
+    "Topic": "app-events",
+    "ConsumerGroup": "app-attributes-queries",
     "WorkersCount": 32,                  // the only parallelism knob
     "BufferSize": 100,                   // per worker
     "BatchSize": 100,
-    "BatchTimeoutMilliseconds": 25
+    "BatchTimeoutMilliseconds": 25,
+    "SecurityProtocol": "SaslPlaintext", // Plaintext | Ssl | SaslPlaintext | SaslSsl
+    "SaslMechanism": "ScramSha512",      // used when the protocol is SASL
+    "IgnoreUnrecognizedMessages": false  // true only on a topic shared with other producers
+    // SaslUsername / SaslPassword are read from the environment, never this file
   }
 }
 ```
@@ -227,6 +233,16 @@ listeners — **validation runs at registration**. KafkaFlow builds its entire t
 `AddKafka` runs, so the values are needed then rather than when something first resolves `IOptions`.
 That is safe here only because nothing registers this transport unless `Messaging:Transport` names
 it, so the empty `appsettings.json` placeholders never reach it.
+
+**Security and the shared-topic switch** were added for the real-broker run.
+`SecurityProtocol` / `SaslMechanism` / `SaslUsername` / `SaslPassword` configure authentication; the
+credentials are read from environment variables (`KafkaFlow__SaslUsername`, `KafkaFlow__SaslPassword`)
+and never committed, and startup fails fast if the protocol is SASL and either is missing.
+`IgnoreUnrecognizedMessages` (default `false`) lets the projector skip messages that carry no
+recognised `type` header instead of failing the whole batch on them — for a topic shared with other
+producers. A message that *does* carry a known type but will not deserialize stays fatal regardless.
+Every setting, with the value to choose and why, is in
+[`kafkaflow-best-practices.md`](kafkaflow-best-practices.md).
 
 The namespace is `Infrastructure.KafkaFlowTransport`, not `Infrastructure.KafkaFlow`, because the
 package owns the `KafkaFlow` root namespace and a folder of the same name shadows it in every file.
@@ -243,7 +259,7 @@ package owns the `KafkaFlow` root namespace and a folder of the same name shadow
 
 ## Tests
 
-`test/AnisShop.Attributes.Queries.Tests/KafkaFlowTransport` (9), plus 2 added to
+`test/AnisShop.Attributes.Queries.Tests/KafkaFlowTransport` (11), plus 2 added to
 `Messaging/EventTransportRegistrationTests`.
 
 The suite is far smaller than the Kafka one, and that is the point: session grouping, ordering,
@@ -256,6 +272,8 @@ harness and no waiting — the projector is called directly, because there is no
 | `Project_ReplayedBatch_LeavesTheReadModelUnchanged` | At-least-once is absorbed by the projection — nothing here deduplicates |
 | `Project_UnknownEventType_ThrowsAndAbandonsTheRestOfTheBatch` | The blast radius, pinned as a test rather than left as a claim |
 | `Project_VersionGap_ThrowsBecauseThePublisherOrderWasViolated` | A gap is a broken publisher promise, and it is loud |
+| `Project_ForeignMessageWithSkipEnabled_IsIgnoredAndRealEventsStillProject` | With the shared-topic switch on, a header-less foreign message is skipped and real aggregates still project |
+| `Project_ForeignMessageWithSkipDisabled_ThrowsLikeAnyUnreadableMessage` | With the switch off (the default), a header-less message is as fatal as any other unreadable one |
 | `KafkaFlowEventDeserializerTests` (5) | Both type-header spellings, null for anything unreadable |
 | `EventTransportRegistrationTests` (+2) | Only the package's hosted service is registered, and our middleware and projector alongside it |
 
@@ -268,6 +286,41 @@ the same way ours does.
 Against that: the failure policy is not ours and cannot be made ours without giving something up,
 and parallelism is capped by worker count with head-of-line blocking between unrelated aggregates.
 
-**Neither Kafka transport has ever run against a real broker.** Until both do — same topic, same
-load, and a rebalance forced mid-flight — this comparison is a reading of two codebases, not a
-measurement. That is the next thing to do, and it needs doing whichever one ships.
+**KafkaFlow has now run against a real broker** — see [The real-broker run](#the-real-broker-run)
+below. The hand-rolled `AnisShop.Kafka.Sessions` transport still has not, so the head-to-head
+*throughput* comparison stays open; but the parts that were pure reading — connectivity, ordering
+under real partition distribution, and a rebalance forced mid-flight — are now measured for KafkaFlow,
+and it held.
+
+## The real-broker run
+
+On 2026-08-11 the KafkaFlow listener ran against a dev cluster (3 brokers, KRaft, Kafka 4.3.1) over a
+VPN, projecting into local SQL Server. What it showed:
+
+**Connectivity.** `SASL_PLAINTEXT` + `SCRAM-SHA-512`, brokers advertising literal IPs so the client
+reaches each one directly with no DNS indirection. Authentication and the whole metadata / produce /
+fetch path worked exactly as the code assumed — this run is what the SASL settings above were added
+for.
+
+**Shared topic.** The only topic these credentials could reach doubled as the cluster's health-probe
+target: a keyless `probe <timestamp>` with no `type` header lands on one partition every ~20s.
+Consuming it is what drove `IgnoreUnrecognizedMessages`. With the switch on, **580 foreign messages
+were skipped** over the session with zero poison, while real events projected normally; with it off,
+the projector treats the same message as fatal (as it should on a dedicated topic).
+
+**Load and ordering.** A first pass of 200 aggregates × 5 contiguous events (1000 messages) across 12
+partitions and 16 workers produced a read model of 200 aggregates, **every one at version 5** — zero
+`Critical`, zero dropped batches. Because the handler refuses any non-contiguous version, a uniform
+`MAX(Version)` is the proof ordering held through `BytesSumDistributionStrategy`'s hashing.
+
+**Rebalance, forced mid-flight.** 1000 aggregates × 8 events (8000 messages) were then *streamed* over
+~25s, and six seconds in a second instance joined the same group. The coordinator moved ~6 partitions
+to it — **1431 inserts/updates on the joining instance** — while the first revoked them cleanly. Final
+read model: **1000 aggregates, all at version 8, zero `Critical` on either instance.** Per-aggregate
+ordering survived the reassignment, and the read model's idempotency absorbed the replay of
+uncommitted messages across the handoff. The multi-instance scale model, measured rather than argued.
+
+The offset manager, pause/resume and commit races the verdict called "production mileage we cannot
+test here" carried all of this without incident. What is still unmeasured is the same run against
+`AnisShop.Kafka.Sessions`, and the throughput numbers themselves — taken over a VPN, they would
+measure the tunnel, not the cluster, and were left for a client co-located with the brokers.
